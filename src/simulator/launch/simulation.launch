@@ -1,0 +1,149 @@
+<launch>
+    
+    <!-- Author: YueLin -->
+
+    <!-- Threads number -->
+    <arg name="num_threads" default="4" />
+
+    <!-- Map -->
+    <arg name="map/seed" default="2024" />
+    <arg name="map/size_z" default="2" />
+    <arg name="map/size_x" default="20" />
+    <arg name="map/size_y" default="20" />
+    <arg name="map/frame" default="world" />
+    <arg name="map/resolution" default="0.05" />
+    <arg name="map/num_obstacles" default="24" />
+    <arg name="map/publish_time" default="1.5" />
+    
+    <!-- Target -->
+    <arg name="target/y" default="10" />
+    <arg name="target/z" default="0.4" />
+    <arg name="target/yaw" default="0" />
+    <arg name="target/x" default="3.25" />
+    <arg name="target/rate" default="5" />
+    <arg name="target/safe" default="0.8" />
+    <arg name="target/width" default="0.4" />
+    <arg name="target/length" default="0.8" />
+    <arg name="target/height" default="0.8" />
+    <arg name="target/max_vel" default="3.0" />
+    <arg name="target/max_acc" default="3.0" />
+    <arg name="target/max_trun" default="30" />
+    <arg name="target/ctrl_err" default="0.7" />
+    <arg name="target/frame" default="target" />
+    <arg name="target/search_step" default="3" />
+    <arg name="target/trun_penalty" default="0.1" />
+    <arg name="target/back_penalty" default="0.01" />
+
+    <!-- Tracker -->
+    <arg name="tracker/x" default="1" />
+    <arg name="tracker/y" default="10" />
+    <arg name="tracker/z" default="0.7" />
+    <arg name="tracker/yaw" default="0" />
+    <arg name="tracker/fps" default="10" />
+    <arg name="tracker/rate" default="30" />
+    <arg name="tracker/beta" default="45" />
+    <arg name="tracker/alpha" default="65" />
+    <arg name="tracker/size" default="0.25" />
+    <arg name="tracker/distance" default="3" />
+    <arg name="tracker/lidar" default="lidar" />
+    <arg name="tracker/frame" default="tracker" />
+
+    <!-- Lidar -->
+    <arg name="lidar/max" default="4" />
+    <arg name="lidar/dh" default="0.2" />
+    <arg name="lidar/rate" default="10" />
+    <arg name="lidar/angle" default="3" />
+    <arg name="lidar/height" default="1" />
+
+    <!-- Robot model -->
+    <include file="$(find simulator)/launch/robot.launch">
+        <arg name="target_size" value="$(arg target/height)" />
+        <arg name="tracker_size" value="$(arg tracker/size)" />
+    </include>
+
+    <!-- Run environment -->
+    <node name="env" pkg="simulator" type="env" output="screen" >
+        <param name="num_threads" value="$(arg num_threads)" type="int" />
+
+        <param name="lidar/dh" value="$(arg lidar/dh)" type="double" />
+        <param name="lidar/max" value="$(arg lidar/max)" type="double" />
+        <param name="lidar/rate" value="$(arg lidar/rate)" type="double" />
+        <param name="lidar/angle" value="$(arg lidar/angle)" type="double" />
+        <param name="lidar/height" value="$(arg lidar/height)" type="double" />
+
+        <param name="target/x" value="$(arg target/x)" type="double" />
+        <param name="target/y" value="$(arg target/y)" type="double" />
+        <param name="target/z" value="$(arg target/z)" type="double" />
+        <param name="target/yaw" value="$(arg target/yaw)" type="double" />
+        <param name="target/rate" value="$(arg target/rate)" type="double" />
+        <param name="target/frame" value="$(arg target/frame)" type="string" />
+        <param name="target/safe_d" value="$(arg target/safe)" type="double" />
+        <param name="target/width" value="$(arg target/width)" type="double" />
+        <param name="target/height" value="$(arg target/height)" type="double" />
+        <param name="target/length" value="$(arg target/length)" type="double" />
+        <param name="target/max_vel" value="$(arg target/max_vel)" type="double" />
+        <param name="target/max_acc" value="$(arg target/max_acc)" type="double" />
+        <param name="target/max_trun" value="$(arg target/max_trun)" type="double" />
+        <param name="target/ctrl_err" value="$(arg target/ctrl_err)" type="double" />
+        <param name="target/search_step" value="$(arg target/search_step)" type="int" />
+        <param name="target/back_penalty" value="$(arg target/back_penalty)" type="double" />
+        <param name="target/trun_penalty" value="$(arg target/trun_penalty)" type="double" />
+
+        <param name="tracker/x" value="$(arg tracker/x)" type="double" />
+        <param name="tracker/y" value="$(arg tracker/y)" type="double" />
+        <param name="tracker/z" value="$(arg tracker/z)" type="double" />
+        <param name="tracker/yaw" value="$(arg tracker/yaw)" type="double" />
+        <param name="tracker/rate" value="$(arg tracker/rate)" type="double" />
+        <param name="tracker/size" value="$(arg tracker/size)" type="double" />
+        <param name="tracker/beta" value="$(arg tracker/beta)" type="double" />
+        <param name="tracker/alpha" value="$(arg tracker/alpha)" type="double" />
+        <param name="tracker/frame" value="$(arg tracker/frame)" type="string" />
+        <param name="tracker/distance" value="$(arg tracker/distance)" type="double" />
+
+        <param name="map/seed" value="$(arg map/seed)" type="int" />
+        <param name="map/frame" value="$(arg map/frame)" type="string" />
+        <param name="map/size_z" value="$(arg map/size_z)" type="double" />
+        <param name="map/size_y" value="$(arg map/size_y)" type="double" />
+        <param name="map/size_x" value="$(arg map/size_x)" type="double" />
+        <param name="map/resolution" value="$(arg map/resolution)" type="double" />
+        <param name="map/num_obstacles" value="$(arg map/num_obstacles)" type="int" />
+        <param name="map/publish_time" value="$(arg map/publish_time)" type="double" />
+    </node>
+
+    <!-- Run tf -->
+    <node name="tf" pkg="simulator" type="pose" output="screen" >
+        <param name="target/frame" value="$(arg target/frame)" type="string" />
+        <param name="tracker/frame" value="$(arg tracker/frame)" type="string" />
+    </node>
+
+    <!-- History trajectory -->
+    <node name="trajectory" pkg="simulator" type="trajectory" output="screen" >
+        <param name="map/frame" value="$(arg map/frame)" type="string" />
+    </node>
+
+    <!-- FOV -->
+    <node name="FOV" pkg="simulator" type="fov" output="screen" >
+        <param name="tracker/rate" value="$(arg tracker/rate)" type="double" />
+        <param name="tracker/beta" value="$(arg tracker/beta)" type="double" />
+        <param name="tracker/alpha" value="$(arg tracker/alpha)" type="double" />
+        <param name="tracker/frame" value="$(arg tracker/frame)" type="string" />
+        <param name="tracker/distance" value="$(arg tracker/distance)" type="double" />
+    </node>
+
+    <!-- Fake visual tracker -->
+    <node name="SOT" pkg="simulator" type="sot" output="screen" >
+        <param name="map/frame" value="$(arg map/frame)" type="string" />
+        <param name="tracker/fps" value="$(arg tracker/fps)" type="double" />
+    </node>
+
+    <!-- Transformation of fake lidar -->
+    <node name="fake_lidar" pkg="tf" 
+          type="static_transform_publisher"
+          args="0 0 0 0 0 0 $(arg tracker/frame) 
+                $(arg tracker/lidar) $(arg tracker/rate)" />
+
+    <!-- Rviz -->
+    <node name="rviz" pkg="rviz" type="rviz"
+          args="-d $(find simulator)/rviz/rviz.rviz" />
+
+</launch>

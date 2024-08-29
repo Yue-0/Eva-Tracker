@@ -1,0 +1,13 @@
+<launch>
+
+    <!-- Author: YueLin -->
+
+    <arg name="gamma" default="0.1" />
+    <arg name="max_iterations" default="100" />
+
+    <node name="predictor" pkg="predictor" type="prediction" output="screen" >
+        <param name="gamma" value="$(arg gamma)" type="double" />
+        <param name="max_iterations" value="$(arg max_iterations)" type="int" />
+    </node>
+
+</launch>

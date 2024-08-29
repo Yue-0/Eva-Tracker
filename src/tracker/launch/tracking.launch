@@ -1,0 +1,87 @@
+<launch>
+
+    <!-- Author: YueLin -->
+
+    <!-- Robot settings -->
+    <arg name="robot/size" value="0.25" />
+    <arg name="robot/max_vel" value="3" />
+    <arg name="robot/max_acc" value="2" />
+    <arg name="robot/max_omega" value="2" />
+    <arg name="robot/max_alpha" value="1" />
+
+    <!-- Camera settings -->
+    <arg name="camera/beta" value="42.5" />
+    <arg name="camera/alpha" value="69.4" />
+    <arg name="camera/distance" value="3" />
+
+    <!-- Visual tracking settings -->
+    <arg name="sot/fps" value="10" />
+
+    <!-- Local map settings -->
+    <arg name="map/size" value="5" />
+    <arg name="map/height" value="1" />
+    <arg name="map/resolution" value="0.05" />
+
+    <!-- Hyper-parameters -->
+    <arg name="opt/hz" value="5" />
+    <arg name="opt/gamma" value="0.1" />
+    <arg name="opt/timeout" value="0.05" />
+    <arg name="opt/max_iter" value="100" />
+    <arg name="opt/tolerance" value="0.5" />
+
+    <!-- Weights -->
+    <arg name="lambda/angle" value="1" />
+    <arg name="lambda/safety" value="0.1" />
+    <arg name="lambda/occlusion" value="0.001" />
+    <arg name="lambda/visibility" value="1" />
+    <arg name="lambda/smoothness" value="0.05" />
+    <arg name="lambda/feasibility" value="1" />
+
+    <!-- Frames -->
+    <arg name="frame/map" value="map" />
+    <arg name="frame/world" value="world" />
+    <arg name="frame/lidar" value="lidar" />
+    <arg name="frame/tracker" value="tracker" />
+
+    <!-- Transformation of local map -->
+    <node name="local_map" pkg="tf" type="static_transform_publisher"
+          args="-$(arg map/size) -$(arg map/size) -$(arg map/height) 0 0 0 
+                $(arg frame/tracker) $(arg frame/map) 30" />
+    
+    <!-- Target trajectory prediction -->
+    <include file="$(find predictor)/launch/prediction.launch" >
+        <arg name="gamma" value="$(arg opt/gamma)" />
+        <arg name="max_iterations" value="$(arg opt/max_iter)" />
+    </include>
+
+    <!-- Eva-tracker algorithm -->
+    <node name="eva_tracker" pkg="tracker" type="tracking" output="screen" >
+        <param name="fps" value="$(arg sot/fps)" type="double" />
+        <param name="planning/hz" value="$(arg opt/hz)" type="double" />
+        <param name="map/width" value="$(arg map/size)" type="double" />
+        <param name="map/length" value="$(arg map/size)" type="double" />
+        <param name="map/height" value="$(arg map/height)" type="double" />
+        <param name="map/frame" value="$(arg frame/world)" type="string" />
+        <param name="tracker/map" value="$(arg frame/map)" type="string" />
+        <param name="opt/timeout" value="$(arg opt/timeout)" type="double" />
+        <param name="tracker/size" value="$(arg robot/size)" type="double" />
+        <param name="camera/beta" value="$(arg camera/beta)" type="double" />
+        <param name="camera/alpha" value="$(arg camera/alpha)" type="double" />
+        <param name="lambda/max_iter" value="$(arg opt/max_iter)" type="int" />
+        <param name="tracker/lidar" value="$(arg frame/lidar)" type="string" />
+        <param name="lambda/angle" value="$(arg lambda/angle)" type="double" />
+        <param name="lambda/safety" value="$(arg lambda/safety)" type="double" />
+        <param name="tracker/frame" value="$(arg frame/tracker)" type="string" />
+        <param name="tracker/max_vel" value="$(arg robot/max_vel)" type="double" />
+        <param name="tracker/max_acc" value="$(arg robot/max_acc)" type="double" />
+        <param name="camera/tolerance" value="$(arg opt/tolerance)" type="double" />
+        <param name="camera/distance" value="$(arg camera/distance)" type="double" />
+        <param name="tracker/max_omega" value="$(arg robot/max_omega)" type="double" />
+        <param name="tracker/max_alpha" value="$(arg robot/max_alpha)" type="double" />
+        <param name="lambda/occlusion" value="$(arg lambda/occlusion)" type="double" />
+        <param name="lambda/visibility" value="$(arg lambda/visibility)" type="double" />
+        <param name="lambda/smoothness" value="$(arg lambda/smoothness)" type="double" />
+        <param name="lambda/feasibility" value="$(arg lambda/feasibility)" type="double" />
+    </node>
+
+</launch>

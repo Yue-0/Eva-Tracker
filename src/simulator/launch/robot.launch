@@ -1,0 +1,22 @@
+<launch>
+
+    <!-- Author: YueLin -->
+    
+    <arg name="target_size" />
+    <arg name="tracker_size" />
+
+    <group ns="target">
+        <param name="robot_description"
+               command="$(find xacro)/xacro 
+               $(find simulator)/urdf/car.xacro
+               size:=$(arg target_size)" />
+    </group>
+
+    <group ns="tracker">
+        <param name="robot_description"
+               command="$(find xacro)/xacro 
+               $(find simulator)/urdf/uav.xacro
+               size:=$(arg tracker_size)" />
+    </group>
+
+</launch>

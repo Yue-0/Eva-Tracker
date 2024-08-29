@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+
+<!-- Author: YueLin -->
+
+<robot name="car" xmlns:xacro="http://www.ros.org/wiki/xacro" >
+
+    <xacro:property name="radius" value="$(arg size)" />
+
+    <link name="target">
+        <visual>
+            <origin xyz="0 0 -0.5" rpy="0 0 3.141592653589793" />
+            <geometry>
+                <mesh filename="package://simulator/meshes/car.dae" 
+                      scale="${radius * 0.05} ${radius * 0.05} ${radius * 0.05}" 
+                />
+            </geometry>
+        </visual>
+    </link>
+
+</robot>

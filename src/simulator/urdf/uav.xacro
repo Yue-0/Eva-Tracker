@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+
+<!-- Author: YueLin -->
+
+<robot name="uav" xmlns:xacro="http://www.ros.org/wiki/xacro" >
+
+    <xacro:property name="radius" value="$(arg size)" />
+
+    <link name="tracker">
+        <visual>
+            <geometry>
+                <mesh filename="package://simulator/meshes/uav.dae" 
+                      scale="${radius * 2} ${radius * 2} ${radius * 2}" />
+            </geometry>
+        </visual>
+    </link>
+
+</robot>
