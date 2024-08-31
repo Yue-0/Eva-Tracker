@@ -40,15 +40,15 @@ namespace sim
         }
         else
         {
+            // sin = std::sin(pose.yaw);
+            // cos = std::cos(pose.yaw);
+            // pose.x += (vel.x * cos - vel.y * sin) * dt;
+            // pose.y += (vel.x * sin + vel.y * cos) * dt;
             double yaw = pose.yaw + vel.yaw * dt;
-            // sin = std::sin(yaw) - std::sin(pose.yaw);
-            // cos = std::cos(pose.yaw) - std::cos(yaw);
-            // pose.x += (vel.x * sin - vel.y * cos) / vel.yaw;
-            // pose.y += (vel.x * cos + vel.y * sin) / vel.yaw;
-            sin = std::sin(pose.yaw);
-            cos = std::cos(pose.yaw);
-            pose.x += (vel.x * cos - vel.y * sin) * dt;
-            pose.y += (vel.x * sin + vel.y * cos) * dt;
+            sin = std::sin(yaw) - std::sin(pose.yaw);
+            cos = std::cos(pose.yaw) - std::cos(yaw);
+            pose.x += (vel.x * sin - vel.y * cos) / vel.yaw;
+            pose.y += (vel.x * cos + vel.y * sin) / vel.yaw;
             while(yaw <= -PI) yaw += 2 * PI;
             while(yaw > PI) yaw -= 2 * PI;
             pose.yaw = yaw;

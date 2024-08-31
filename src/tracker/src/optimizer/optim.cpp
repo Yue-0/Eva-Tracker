@@ -35,11 +35,13 @@ namespace eva_tracker
         lambda[FEASIBLE] = lmd_feasibility;
     }
 
-    BSpline Optimizer::optimize(BSpline& curve, PointCloud* pc, Path* target)
+    BSpline Optimizer::optimize(BSpline& curve, Path* target,
+                                PointCloud* pc, PointCloud* dp)
     {
         /* Initialize */
         double cost;
         cloud = *pc;
+        depth = *dp;
         predict = *target;
         Eigen::VectorXd var = curve.controls();
 
@@ -176,7 +178,7 @@ namespace eva_tracker
             // }
 
             /* Occlusion cost */
-            for(pcl::PointXYZ obstacle: self->cloud)
+            for(pcl::PointXYZ obstacle: self->depth)
             {
                 /* Coordinate of the obstacle */
                 const double

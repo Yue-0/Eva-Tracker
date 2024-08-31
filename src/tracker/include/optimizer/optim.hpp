@@ -15,8 +15,8 @@ namespace eva_tracker
             Path predict;
             int iterations;
             BSpline spline;
-            PointCloud cloud;
             ESDF *robot, *fov;
+            PointCloud cloud, depth;
             double lambda[6], limit2[2][2], costs[6];
         
         private:
@@ -28,7 +28,7 @@ namespace eva_tracker
                       double, double, double, double, double, double);
         
         public:
-            BSpline optimize(BSpline&, PointCloud*, Path*);
+            BSpline optimize(BSpline&, Path*, PointCloud*, PointCloud*);
         
         private:
             static double f(void*, const Eigen::VectorXd&, Eigen::VectorXd&);

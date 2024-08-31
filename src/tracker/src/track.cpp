@@ -103,10 +103,8 @@ int main(int argc, char* argv[])
     );
 
     /* Initialize path searcher */
-    const double xb = fov.argmax().x;
-    ROS_INFO("The best observation distance is %.2fm", xb);
     eva_tracker::PathSearcher searcher(
-        nh.param("opt/timeout", 0.1), xb,
+        fov.argmax().x,
         2 * nh.param("map/length", 5.),
         2 * nh.param("map/width", 5.),
         2 * nh.param("map/height", 2.),
@@ -121,6 +119,7 @@ int main(int argc, char* argv[])
     eva_tracker::Path velocity;
     eva_tracker::Acceleration acc;
     eva_tracker::PointCloud cloud;
+    eva_tracker::PointCloud depth;
     tf::TransformListener listener;
     const eva_tracker::Point<double> zero(0, 0, 0, 0);
 
@@ -130,11 +129,12 @@ int main(int argc, char* argv[])
     plan.header.frame_id = world_frame;
     
     /* Locks */
-    bool locks[4];
+    bool locks[5];
     bool* target_lock = locks;
     bool* map_lock = locks + 1;
     bool* cloud_lock = locks + 2;
     bool* curve_lock = locks + 3;
+    bool* depth_lock = locks + 4;
     memset(locks, false, sizeof(locks));
 
     /* Wait for transforms */
@@ -194,6 +194,27 @@ int main(int argc, char* argv[])
             unlock(cloud_lock);
         }
     );
+    ros::Subscriber rgbd = nh.subscribe<PointCloud>(
+        "/tracker/depth", 1, [
+            &map_lock, &depth_lock,
+            &map, &expansion, &depth,
+            &listener, &lidar_frame, &world_frame
+        ](PointCloud::ConstPtr message){
+
+            /* Update map */
+            eva_tracker::PointCloud pc;
+            pcl::fromROSMsg(*message, pc);  // Lidar frame
+
+            /* Lidar frame -> World frame */
+            const int num = pc.size();
+            double x0, y0, z0, sin, cos;
+            wait4lock(depth_lock); depth = pc;
+            transform(lidar_frame, world_frame, listener, x0, y0, z0, sin, cos);
+            for(int p = 0; p < num; p++)
+                transfer(depth[p], x0, y0, z0, sin, cos);
+            unlock(depth_lock);
+        }
+    );
 
     /* Trajectory planning */
     ros::Timer planner = nh.createTimer(
@@ -201,14 +222,20 @@ int main(int argc, char* argv[])
             &target_lock, &map_lock,
             &searcher, &map, &target,
             &world_frame, &map_frame, &listener,
-            &cloud_lock, &curve_lock, &bs, &vel, &acc, &dt, &hz,
-            &optimizer, &cloud, &velocity, &plan, &trajectory
+            &cloud_lock, &curve_lock, &depth_lock, &bs, &vel, &acc, 
+            &dt, &hz, &optimizer, &cloud, &depth, &velocity, &plan, &trajectory
         ](const ros::TimerEvent&){
             
             /* Path planning */
             wait4lock(target_lock); wait4lock(map_lock);
             eva_tracker::Path path = searcher.plan(map, target);  // Map frame
             eva_tracker::Path prediction = target;
+            if(searcher.search == -1)
+            {
+                unlock(target_lock);
+                unlock(map_lock);
+                return;
+            }
             unlock(map_lock);
 
             /* Map frame -> World frame */
@@ -233,13 +260,13 @@ int main(int argc, char* argv[])
             if(len <= 0) return;
 
             /* Create B-spline and optimize trajectory */
-            wait4lock(cloud_lock);
             bs.create(path, vel, acc, dt);
-            bs = optimizer.optimize(bs, &cloud, &prediction);  // World frame
-            unlock(cloud_lock);
+            wait4lock(cloud_lock); wait4lock(depth_lock);
+            bs = optimizer.optimize(bs, &prediction, &cloud, &depth);
+            unlock(cloud_lock); unlock(depth_lock);
             
             /* Get velocity */
-            path = bs.trajectory();
+            path = bs.trajectory();  // World frame
             wait4lock(curve_lock);
             len = path.size();
             velocity.clear();

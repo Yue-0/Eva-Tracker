@@ -9,20 +9,14 @@ namespace eva_tracker
     PathSearcher::~PathSearcher()
     {
         for(int x = 0; x < size.x; x++)
-        {
-            for(int y = 0; y < size.y; y++)
-                delete[] visited[x][y];
             delete[] visited[x];
-        }
         delete[] visited;
     }
 
-    PathSearcher::PathSearcher(double t,
-                               double dist, double length, double width,
+    PathSearcher::PathSearcher(double dist, double length, double width,
                                double height, double error, double resolution)
     {
         /* Initialize */
-        timeout = t;
         err = 1 / resolution;
         distance = std::round(dist * err);
         size.z = std::round(height * err);
@@ -32,13 +26,11 @@ namespace eva_tracker
         err = error;
 
         /* Allocate memory */
-        visited = new bool**[size.x];
+        visited = new bool*[size.x];
         for(int x = 0; x < size.x; x++)
-        {
-            visited[x] = new bool*[size.y];
-            for(int y = 0; y < size.y; y++)
-                visited[x][y] = new bool[size.z];
-        }
+            visited[x] = new bool[size.y];
+        
+        ROS_INFO("The best observation distance is %.2fm", dist);
     }
 
     Path PathSearcher::plan(Map& map, Path& prediction)
@@ -54,21 +46,20 @@ namespace eva_tracker
         double time = TIME();
         for(int p = 1; p < n; p++)
         {
-            if((end = find(map, start, prediction[p])) == start)
+            if((end = find(map, start, prediction[p])) == start || search == -1)
                 break;
             path.push_back(start = end);
-            if(TIME() - time > timeout)
-                break;
         }
         time = TIME() - time;
-        ROS_INFO("[Path] Duration: %fs.", time);
+        if(search == -1) ROS_WARN("Path search failed.");
+        else ROS_INFO("[Path] Duration: %fs.", time);
         return path;
     }
 
     Point<int> PathSearcher::bfs(Map& map, Point<int> start, Point<int> target)
     {
         /* Determine whether the search is need */
-        if(visible(map, start, target))
+        if(!(search = !visible(map, start, target)))
         {
             VISIBLE:
                 start.yaw = std::atan2(target.y - start.y, target.x - start.x);
@@ -79,12 +70,11 @@ namespace eva_tracker
         std::queue<Point<int>> queue;
         for(int x = 0; x < size.x; x++)
             for(int y = 0; y < size.y; y++)
-                for(int z = 0; z < size.z; z++)
-                    visited[x][y][z] = false;
+                visited[x][y] = false;
         start.x = std::max(std::min(start.x, size.x - 1), 0);
         start.y = std::max(std::min(start.y, size.y - 1), 0);
         start.z = std::max(std::min(start.z, size.z - 1), 0);
-        visited[start.x][start.y][start.z] = true;
+        visited[start.x][start.y] = true;
 
         /* BFS algorithm */
         queue.push(start);
@@ -95,17 +85,19 @@ namespace eva_tracker
 
             /* If found a visible point */
             if(visible(map, start, target))
-                break;
+                goto VISIBLE;
             
             /* Expand node */
-            for(Point<int> node: map.neighbors(start, 1))
-                if(!visited[node.x][node.y][node.z])
+            for(Point<int> node: map.neighbors(start, 1, 1, 0))
+                if(!visited[node.x][node.y])
                 {
                     queue.push(node);
-                    visited[node.x][node.y][node.z] = true;
+                    visited[node.x][node.y] = true;
                 }
         }
 
+        /* Search failed */
+        search = -1;
         goto VISIBLE;
     }
 

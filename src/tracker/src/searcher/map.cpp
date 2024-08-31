@@ -51,16 +51,14 @@ namespace eva_tracker
         }
     }
 
-    std::vector<Point<int>> Map::neighbors(Point<int>& point, int distance)
+    std::vector<Point<int>> Map::neighbors(Point<int>& point,
+                                           int dx, int dy, int dz)
     {
         /* Boundary */ 
         std::vector<Point<int>> points; int
-        x1 = std::max(point.x - distance, 0),
-        y1 = std::max(point.y - distance, 0),
-        z1 = std::max(point.z - distance, 0),
-        x2 = std::min(point.x + distance, size.x - 1),
-        y2 = std::min(point.y + distance, size.y - 1),
-        z2 = std::min(point.z + distance, size.z - 1);
+        x1 = std::max(point.x - dx, 0), x2 = std::min(point.x + dx, size.x - 1),
+        y1 = std::max(point.y - dy, 0), y2 = std::min(point.y + dy, size.y - 1),
+        z1 = std::max(point.z - dz, 0), z2 = std::min(point.z + dz, size.z - 1);
         
         /* Add neighbors */
         for(int x = x1; x <= x2; x++)

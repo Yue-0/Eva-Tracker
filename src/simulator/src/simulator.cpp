@@ -73,12 +73,20 @@ int main(int argc, char* argv[])
     double high = nh.param("lidar/height", 1.);
     double height = nh.param("lidar/dh", 1e-1);
     double angle = nh.param("lidar/angle", 1.) * PI / 180;
+    double lines = nh.param("lidar/single", false)? high: 0;
+    double angles = nh.param("tracker/angle", 60.) * PI / 360;
     int range = std::round(nh.param("lidar/max", 5.) / env.map.resolution);
+    int dis = std::round(nh.param("tracker/distance", 5.) / env.map.resolution);
     ros::Publisher laser = nh.advertise<PointCloud>("/tracker/lidar", 1);
+    ros::Publisher depth = nh.advertise<PointCloud>("/tracker/depth", 1);
     // ros::Publisher sl = nh.advertise<LaserScan>("/target/lidar", 1);
     ros::Timer lidar = sim::LiDAR(
         nh, frame[1], env.map, env.tracker,
-        laser, 1 / time, high, height, angle, range
+        laser, 1 / time, lines, height, angle, range
+    );
+    ros::Timer camera = sim::depth(
+        nh, frame[1], env.map, env.tracker,
+        depth, 1 / time, high, height, angles, angle, dis
     );
     // ros::Timer single = sim::LiDAR(
     //     nh, frame[2], env.map, env.target, sl, 1 / time, angle, range

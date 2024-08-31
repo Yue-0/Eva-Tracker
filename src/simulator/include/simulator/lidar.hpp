@@ -29,4 +29,9 @@ namespace sim
     /* Create a single-line LiDAR */
     ros::Timer LiDAR(ros::NodeHandle&, std::string&, Map&,
                      Robot&, ros::Publisher&, double, double&, int&);
+    
+    /* Create a depth camera */
+    ros::Timer depth(ros::NodeHandle&, std::string&,
+                     Map&, Robot&, ros::Publisher&,
+                     double, double&, double&, double&, double&, int&);
 }

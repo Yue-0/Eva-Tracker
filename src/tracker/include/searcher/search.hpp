@@ -7,16 +7,17 @@ namespace eva_tracker
     class PathSearcher
     {
         private:
+            double err;
             int distance;
-            bool*** visited;
+            bool** visited;
             Point<int> size;
-            double err, timeout;
+        
+        public:
+            int search;
 
         public:
             ~PathSearcher();
-            PathSearcher(double, 
-                         double, double, double, 
-                         double, double, double);
+            PathSearcher(double, double, double, double, double, double);
         
         public:
             Path plan(Map&, Path&);

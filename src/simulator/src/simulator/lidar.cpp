@@ -46,54 +46,11 @@ namespace sim
                      double time, double& total, 
                      double& height, double& angle, int& range)
     {
-        return n.createTimer(ros::Duration(time), [&](const ros::TimerEvent&){
-            /* Position */
-            double r = 1 / map.resolution;
-            int x0 = std::round(robot.pose.x * r);
-            int y0 = std::round(robot.pose.y * r);
-            int z0 = std::round(robot.pose.z * r);
-
-            /* Initialize */
-            int dz = height * r;
-            int h0 = (total * r) / 2;
-            int z1 = std::max(z0 - h0, 0);
-            int z2 = std::min(z0 + h0, map.size[Z] - 1);
-            
-            /* Laser scan */
-            PointCloud3D cloud;
-            for(float rad = 0; rad < PI * 2; rad += angle)
-            {
-                double sin = std::sin(rad + robot.pose.yaw);
-                double cos = std::cos(rad + robot.pose.yaw);
-                double sin0 = std::sin(rad), cos0 = std::cos(rad);
-                for(int z = z1; z <= z2; z += dz)
-                {
-                    int t = 0;
-                    while(++t <= range)
-                    {
-                        int x = std::round(x0 + t * cos);
-                        int y = std::round(y0 + t * sin);
-                        if(x < 0 || x >= map.size[X]) break;
-                        if(y < 0 || y >= map.size[Y]) break;
-                        if(map.map[x][y][z])
-                        {
-                            cloud.push_back(pcl::PointXYZ(
-                                t * map.resolution * cos0,
-                                t * map.resolution * sin0,
-                                (z - z0) * map.resolution
-                            ));
-                            break;
-                        }
-                    }
-                }
-            }
-            cloud.height = 1;
-            cloud.is_dense = true;
-            cloud.width = cloud.points.size();
-
-            /* Publish */
-            publisher.publish(cloud2msg(cloud, frame));
-        });
+        static double pi = PI;
+        return depth(
+            n, frame, map, robot, publisher, 
+            time, total, height, pi, angle, range
+        );
     }
 
     ros::Timer LiDAR(ros::NodeHandle& n,
@@ -153,6 +110,63 @@ namespace sim
 
             /* Publish */
             publisher.publish(cloud);
+        });
+    }
+
+    ros::Timer depth(ros::NodeHandle& n,
+                     std::string& frame,
+                     Map& map, Robot& robot,
+                     ros::Publisher& publisher,
+                     double time, double& total, double& height, 
+                     double& angles, double& angle, int& range)
+    {
+        return n.createTimer(ros::Duration(time), [&](const ros::TimerEvent&){
+            /* Position */
+            double r = 1 / map.resolution;
+            int x0 = std::round(robot.pose.x * r);
+            int y0 = std::round(robot.pose.y * r);
+            int z0 = std::round(robot.pose.z * r);
+
+            /* Initialize */
+            int dz = height * r;
+            int h0 = (total * r) / 2;
+            int z1 = std::max(z0 - h0, 0);
+            int z2 = std::min(z0 + h0, map.size[Z] - 1);
+            
+            /* Laser scan */
+            PointCloud3D cloud;
+            for(float rad = -angles; rad < angles; rad += angle)
+            {
+                double sin = std::sin(rad + robot.pose.yaw);
+                double cos = std::cos(rad + robot.pose.yaw);
+                double sin0 = std::sin(rad), cos0 = std::cos(rad);
+                for(int z = z1; z <= z2; z += dz)
+                {
+                    int t = 0;
+                    while(++t <= range)
+                    {
+                        int x = std::round(x0 + t * cos);
+                        int y = std::round(y0 + t * sin);
+                        if(x < 0 || x >= map.size[X]) break;
+                        if(y < 0 || y >= map.size[Y]) break;
+                        if(map.map[x][y][z])
+                        {
+                            cloud.push_back(pcl::PointXYZ(
+                                t * map.resolution * cos0,
+                                t * map.resolution * sin0,
+                                (z - z0) * map.resolution
+                            ));
+                            break;
+                        }
+                    }
+                }
+            }
+            cloud.height = 1;
+            cloud.is_dense = true;
+            cloud.width = cloud.points.size();
+
+            /* Publish */
+            publisher.publish(cloud2msg(cloud, frame));
         });
     }
 }

@@ -27,7 +27,9 @@ namespace eva_tracker
         
         public:
             void update(PointCloud&, double);
-            std::vector<Point<int>> neighbors(Point<int>&, int);
+            std::vector<Point<int>> neighbors(Point<int>&, int, int, int);
+            std::vector<Point<int>> neighbors(Point<int>& point, int distance)
+            {return neighbors(point, distance, distance, distance);}
         
         private:
             void clear();

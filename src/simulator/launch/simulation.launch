@@ -41,8 +41,8 @@
     <arg name="tracker/yaw" default="0" />
     <arg name="tracker/fps" default="10" />
     <arg name="tracker/rate" default="30" />
-    <arg name="tracker/beta" default="45" />
     <arg name="tracker/alpha" default="65" />
+    <arg name="tracker/beta" default="42.5" />
     <arg name="tracker/size" default="0.25" />
     <arg name="tracker/distance" default="3" />
     <arg name="tracker/lidar" default="lidar" />
@@ -53,7 +53,7 @@
     <arg name="lidar/dh" default="0.2" />
     <arg name="lidar/rate" default="10" />
     <arg name="lidar/angle" default="3" />
-    <arg name="lidar/height" default="1" />
+    <arg name="lidar/single" default="true" />
 
     <!-- Robot model -->
     <include file="$(find simulator)/launch/robot.launch">
@@ -69,7 +69,7 @@
         <param name="lidar/max" value="$(arg lidar/max)" type="double" />
         <param name="lidar/rate" value="$(arg lidar/rate)" type="double" />
         <param name="lidar/angle" value="$(arg lidar/angle)" type="double" />
-        <param name="lidar/height" value="$(arg lidar/height)" type="double" />
+        <param name="lidar/single" value="$(arg lidar/single)" type="bool" />
 
         <param name="target/x" value="$(arg target/x)" type="double" />
         <param name="target/y" value="$(arg target/y)" type="double" />
@@ -95,9 +95,8 @@
         <param name="tracker/yaw" value="$(arg tracker/yaw)" type="double" />
         <param name="tracker/rate" value="$(arg tracker/rate)" type="double" />
         <param name="tracker/size" value="$(arg tracker/size)" type="double" />
-        <param name="tracker/beta" value="$(arg tracker/beta)" type="double" />
-        <param name="tracker/alpha" value="$(arg tracker/alpha)" type="double" />
         <param name="tracker/frame" value="$(arg tracker/frame)" type="string" />
+        <param name="tracker/angle" value="$(arg tracker/alpha)" type="double" />
         <param name="tracker/distance" value="$(arg tracker/distance)" type="double" />
 
         <param name="map/seed" value="$(arg map/seed)" type="int" />

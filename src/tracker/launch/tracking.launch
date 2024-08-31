@@ -25,7 +25,6 @@
     <!-- Hyper-parameters -->
     <arg name="opt/hz" value="5" />
     <arg name="opt/gamma" value="0.1" />
-    <arg name="opt/timeout" value="0.05" />
     <arg name="opt/max_iter" value="100" />
     <arg name="opt/tolerance" value="0.5" />
 
@@ -63,7 +62,6 @@
         <param name="map/height" value="$(arg map/height)" type="double" />
         <param name="map/frame" value="$(arg frame/world)" type="string" />
         <param name="tracker/map" value="$(arg frame/map)" type="string" />
-        <param name="opt/timeout" value="$(arg opt/timeout)" type="double" />
         <param name="tracker/size" value="$(arg robot/size)" type="double" />
         <param name="camera/beta" value="$(arg camera/beta)" type="double" />
         <param name="camera/alpha" value="$(arg camera/alpha)" type="double" />
