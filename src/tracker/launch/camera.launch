@@ -7,14 +7,10 @@
     <arg name="camera/distance" default="3" />
 
     <!-- Frames -->
-    <!-- <arg name="frame/world" default="world" />
+    <arg name="frame/world" default="world" />
     <arg name="frame/lidar" default="lidar" />
     <arg name="frame/target" default="target" />
-    <arg name="frame/tracker" default="tracker" /> -->
-    <arg name="frame/world" default="odom" />
-    <arg name="frame/lidar" default="base_link" />
-    <arg name="frame/target" default="target" />
-    <arg name="frame/tracker" default="base_link" />
+    <arg name="frame/tracker" default="tracker" />
 
     <!-- Visual node -->
     <node name="camera" pkg="tracker" type="camera.py" output="screen" >
