@@ -3,44 +3,44 @@
     <!-- Author: YueLin -->
 
     <!-- Robot settings -->
-    <arg name="robot/size" value="0.25" />
-    <arg name="robot/max_vel" value="3" />
-    <arg name="robot/max_acc" value="2" />
-    <arg name="robot/max_omega" value="2" />
-    <arg name="robot/max_alpha" value="1" />
+    <arg name="robot/size" default="0.25" />
+    <arg name="robot/max_vel" default="3" />
+    <arg name="robot/max_acc" default="2" />
+    <arg name="robot/max_omega" default="2" />
+    <arg name="robot/max_alpha" default="1" />
 
     <!-- Camera settings -->
-    <arg name="camera/beta" value="42.5" />
-    <arg name="camera/alpha" value="69.4" />
-    <arg name="camera/distance" value="3" />
+    <arg name="camera/beta" default="42.5" />
+    <arg name="camera/alpha" default="69.4" />
+    <arg name="camera/distance" default="3" />
 
     <!-- Visual tracking settings -->
-    <arg name="sot/fps" value="10" />
+    <arg name="sot/fps" default="10" />
 
     <!-- Local map settings -->
-    <arg name="map/size" value="5" />
-    <arg name="map/height" value="1" />
-    <arg name="map/resolution" value="0.05" />
+    <arg name="map/size" default="5" />
+    <arg name="map/height" default="1" />
+    <arg name="map/resolution" default="0.05" />
 
     <!-- Hyper-parameters -->
-    <arg name="opt/hz" value="5" />
-    <arg name="opt/gamma" value="0.1" />
-    <arg name="opt/max_iter" value="100" />
-    <arg name="opt/tolerance" value="0.5" />
+    <arg name="opt/hz" default="5" />
+    <arg name="opt/gamma" default="0.1" />
+    <arg name="opt/max_iter" default="100" />
+    <arg name="opt/tolerance" default="0.5" />
 
     <!-- Weights -->
-    <arg name="lambda/angle" value="1" />
-    <arg name="lambda/safety" value="0.1" />
-    <arg name="lambda/occlusion" value="0.001" />
-    <arg name="lambda/visibility" value="1" />
-    <arg name="lambda/smoothness" value="0.05" />
-    <arg name="lambda/feasibility" value="1" />
+    <arg name="lambda/angle" default="1" />
+    <arg name="lambda/safety" default="0.1" />
+    <arg name="lambda/occlusion" default="0.001" />
+    <arg name="lambda/visibility" default="1" />
+    <arg name="lambda/smoothness" default="0.05" />
+    <arg name="lambda/feasibility" default="1" />
 
     <!-- Frames -->
-    <arg name="frame/map" value="map" />
-    <arg name="frame/world" value="world" />
-    <arg name="frame/lidar" value="lidar" />
-    <arg name="frame/tracker" value="tracker" />
+    <arg name="frame/map" default="map" />
+    <arg name="frame/world" default="world" />
+    <arg name="frame/lidar" default="lidar" />
+    <arg name="frame/tracker" default="tracker" />
 
     <!-- Transformation of local map -->
     <node name="local_map" pkg="tf" type="static_transform_publisher"

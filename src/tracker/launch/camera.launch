@@ -1,0 +1,29 @@
+<launch>
+
+    <!-- Author: YueLin -->
+
+    <!-- Camera settings -->
+    <arg name="camera/fps" default="10" />
+    <arg name="camera/distance" default="3" />
+
+    <!-- Frames -->
+    <!-- <arg name="frame/world" default="world" />
+    <arg name="frame/lidar" default="lidar" />
+    <arg name="frame/target" default="target" />
+    <arg name="frame/tracker" default="tracker" /> -->
+    <arg name="frame/world" default="odom" />
+    <arg name="frame/lidar" default="base_link" />
+    <arg name="frame/target" default="target" />
+    <arg name="frame/tracker" default="base_link" />
+
+    <!-- Visual node -->
+    <node name="camera" pkg="tracker" type="camera.py" output="screen" >
+        <param name="fps" value="$(arg camera/fps)" type="int" />
+        <param name="frame/world" value="$(arg frame/world)" type="string" />
+        <param name="frame/lidar" value="$(arg frame/lidar)" type="string" />
+        <param name="frame/robot" value="$(arg frame/tracker)" type="string" />
+        <param name="frame/target" value="$(arg frame/target)" type="string" />
+        <param name="distance_max" value="$(arg camera/distance)" type="double" />
+    </node>
+
+</launch>

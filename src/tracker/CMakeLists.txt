@@ -42,3 +42,9 @@ target_link_libraries(tracking
     eva_tracker
     ${catkin_LIBRARIES}
 )
+
+# Mark executable scripts for installation
+catkin_install_python(PROGRAMS
+  scripts/camera.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)

@@ -13,7 +13,7 @@
             "cStandard": "c17",
             "cppStandard": "gnu++17",
             "compilerPath": "/usr/bin/gcc",
-            "intelliSenseMode": "linux-gcc-x64"
+            "intelliSenseMode": "linux-gcc-arm64"
         }
     ],
     "version": 4
