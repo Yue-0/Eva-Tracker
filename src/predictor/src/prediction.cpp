@@ -11,8 +11,6 @@
 
 using namespace trajectory_prediction;
 
-typedef nav_msgs::Path Trajectory;
-
 int main(int argc, char* argv[])
 {
     ROS_INIT("predictor");
@@ -20,18 +18,20 @@ int main(int argc, char* argv[])
 
     /* Initialize trajectory predictor */
     Points trajectory;
-    Trajectory prediction;
+    nav_msgs::Path prediction;
     Predictor predictor(
         nh.param("gamma", 0.1),
         nh.param("max_iterations", 0)
     );
 
     /* Publisher */
-    ros::Publisher publisher = nh.advertise<Trajectory>("/target/predict", 1);
+    ros::Publisher publisher = nh.advertise<nav_msgs::Path>(
+        "/target/predict", 1
+    );
 
     /* Subscriber */
-    ros::Subscriber subscriber = nh.subscribe<Trajectory>(
-        "/target/poses", 1, [&](Trajectory::ConstPtr path){
+    ros::Subscriber subscriber = nh.subscribe<nav_msgs::Path>(
+        "/target/poses", 1, [&](nav_msgs::Path::ConstPtr path){
             trajectory.clear();
             prediction.poses.clear();
             prediction.header.frame_id = path->header.frame_id;

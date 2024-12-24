@@ -280,6 +280,7 @@ int main(int argc, char* argv[])
             for(eva_tracker::Point<double> point: path)
             {
                 geometry_msgs::PoseStamped pose;
+                pose.header.frame_id = plan.header.frame_id;
                 pose.pose.position.x = point.x;
                 pose.pose.position.y = point.y;
                 pose.pose.position.z = point.z;

@@ -25,16 +25,19 @@ namespace eva_tracker
 
     Point<double> BSpline::operator[](double time)
     {
-        double t;
-        Path points;
         time = std::min(std::max(time, knots[degree]), knots[n + 1]);
-        const int k = std::ceil(time / dt) + degree - 1;
+
+        int k = degree;
+        while(knots[++k] < time);
+        --k;
+
+        Path points;
         for(int left = 0; left <= degree; left++)
             points.push_back(control[k - degree + left]);
         for(int left = 1; left <= degree; left++)
             for(int right = degree; right >= left; right--)
             {
-                t = (time - knots[right + k - degree]) / (
+                double t = (time - knots[right + k - degree]) / (
                     knots[right + k - left + 1] - knots[right + k - degree]
                 );
                 points[right] = t * points[right] + (1 - t) * points[right - 1];

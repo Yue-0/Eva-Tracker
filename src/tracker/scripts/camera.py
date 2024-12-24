@@ -64,7 +64,7 @@ class Segmentor:
         )
         self.masks = 0x20
         i = self.model.get_inputs()[0]
-        self.input, self.shape = i.name, i.shape[-2:]
+        self.input, self.shape = i.name, tuple(i.shape[-2:])
 
         # For visualization
         self.colors = [[int(h[i + 1:3 + i], 16) for i in (4, 2, 0)] for h in (
@@ -253,6 +253,8 @@ class Camera:
         self.depth = rospy.Publisher("/depth", msg.PointCloud2, queue_size=1)
     
     def run(self):
+        detection = False
+        ds = rospy.get_param("~camera/down_sample", 10)
         intrinsics = np.linalg.inv(self.sense.intrinsic)
         self.frame.waitForTransform(
             self.robot, self.world, rospy.Time(), rospy.Duration(10)
@@ -284,19 +286,25 @@ class Camera:
             
             # Calculate the target's position
             if box.shape[0]:
+                detection = True
                 sin, cos = np.sin(yaw), np.cos(yaw)
-                d = np.mean(depth[np.logical_and(mask[0], depth != 0)])
-                dx, _, dz = d * np.dot(intrinsics, np.array([x, y, 1]).T).T
+
+                dx, _, dz = np.mean(
+                    depth[np.logical_and(mask[0], depth != 0)]
+                ) * np.dot(intrinsics, np.array([
+                    np.mean(box[0, ::2]), np.mean(box[0, 1::2]), 1
+                ]).T).T
                 odom.pose.pose.position.x = x + dz * cos + dx * sin
                 odom.pose.pose.position.y = y + dz * sin - dx * cos
                 odom.pose.pose.position.z = z
-            self.track.publish(odom)
+            if detection:
+                self.track.publish(odom)
 
             # Filter out the target in the depth map
             if segmentation:
                 depth[cv2.dilate(
                     0xFF * mask[0].astype(np.uint8), 
-                    cv2.getStructuringElement(cv2.MORPH_CROSS, (30,) * 2)
+                    cv2.getStructuringElement(cv2.MORPH_CROSS, (ds * 3,) * 2)
                 ) == 0xFF] = 0
             depth[depth > self.d_max] = 0
             
@@ -308,12 +316,12 @@ class Camera:
                 depth, 
                 -x / self.sense.intrinsic[0, 0], 
                 -y / self.sense.intrinsic[1, 1]
-            ))[::10, ::10, :].reshape(-1, 3)
+            ))[::ds, ::ds, :].reshape(-1, 3)
             self.depth.publish(point_cloud2.create_cloud_xyz32(
-                header, cloud[depth[::10, ::10].flatten() != 0].tolist()
+                header, cloud[depth[::ds, ::ds].flatten() != 0].tolist()
             ))
 
-            # Visualize instance segmentation result 
+            # Visualize the result of instance segmentation 
             self.image.publish(self.np2im(self.model.visualize(
                 color, box, segmentation
             ), "bgr8"))
