@@ -182,9 +182,9 @@ namespace nav
         return message;
     }
 
-    sim::SO3 HybirdAStar::control(std::vector<Node>& trajectory)
+    sim::R3xSO2 HybirdAStar::control(std::vector<Node>& trajectory)
     {
-        sim::SO3 ctrl = {0.0, 0.0, 0.0, 0.0};
+        sim::R3xSO2 ctrl = {0.0, 0.0, 0.0, 0.0};
         if(trajectory.empty()) return ctrl;
         Node node = trajectory.back();
         trajectory.pop_back();

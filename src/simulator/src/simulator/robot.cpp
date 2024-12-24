@@ -14,7 +14,7 @@ namespace sim
         pose.x = pose.y = pose.z = pose.yaw = 0;
     }
 
-    Robot::Robot(SO3 position, double l, double w, double h)
+    Robot::Robot(R3xSO2 position, double l, double w, double h)
     {
         width = w;
         length = l;
@@ -56,7 +56,7 @@ namespace sim
         unlock();
     }
 
-    void Robot::control(SO3 velocity)
+    void Robot::control(R3xSO2 velocity)
     {
         wait4lock();
         vel.x = velocity.x;

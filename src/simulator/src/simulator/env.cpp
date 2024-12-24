@@ -73,8 +73,8 @@ namespace sim
                              double tracker_h)
     {
         map = Map(map_x, map_y, map_z, resolution);
-        SO3 target_pose = {target_x, target_y, target_z, target_yaw};
-        SO3 tracker_pose = {tracker_x, tracker_y, tracker_z, tracker_yaw};
+        R3xSO2 tracker_pose = {tracker_x, tracker_y, tracker_z, tracker_yaw};
+        R3xSO2 target_pose = {target_x, target_y, target_z, target_yaw};
         tracker = Robot(tracker_pose, tracker_l, tracker_w, tracker_h);
         target = Robot(target_pose, target_l, target_w, target_h);
     }

@@ -43,7 +43,7 @@ namespace nav
             std::vector<Node> plan(sim::Map&, std::vector<std::vector<double>>);
             std::vector<std::vector<double>> dijkstra(sim::Map&, float, float);
             nav_msgs::Path msg(std::vector<Node>&, std::string&);
-            sim::SO3 control(std::vector<Node>&);
+            sim::R3xSO2 control(std::vector<Node>&);
         
         private:
             double f(Node&);

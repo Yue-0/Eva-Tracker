@@ -172,7 +172,7 @@ int main(int argc, char* argv[])
             &path, &planner, &lock, &env
         ](const ros::TimerEvent&){
             wait4lock(lock[1]);
-            sim::SO3 vel = planner.control(path);
+            sim::R3xSO2 vel = planner.control(path);
             unlock(lock[1]); env.target.control(vel);
         }
     );
