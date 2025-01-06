@@ -2,9 +2,8 @@
 
 #include <vector>
 
-#include "lbfgs.hpp"
-
 #include "utils.hpp"
+#include "optimizer/lbfgs.hpp"
 
 namespace trajectory_prediction
 {

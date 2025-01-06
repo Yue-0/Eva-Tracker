@@ -1,9 +1,8 @@
 /* @Author YueLin */
 
-#include "lbfgs.hpp"
-
 #include "searcher/map.hpp"
 #include "optimizer/esdf.hpp"
+#include "optimizer/lbfgs.hpp"
 #include "optimizer/bspline.hpp"
 
 namespace eva_tracker
