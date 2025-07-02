@@ -59,7 +59,7 @@ Visualization Manager:
       Axis: Z
       Channel Name: intensity
       Class: rviz/PointCloud2
-      Color: 136; 138; 133
+      Color: 0; 0; 0
       Color Transformer: FlatColor
       Decay Time: 0
       Enabled: true
@@ -78,6 +78,34 @@ Visualization Manager:
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 0.8999999761581421
+        Min Value: 0
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/PointCloud2
+      Color: 255; 255; 255
+      Color Transformer: AxisColor
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Min Color: 0; 0; 0
+      Name: PointCloud2
+      Position Transformer: XYZ
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.10000000149011612
+      Style: Boxes
+      Topic: /tracker/lidar
+      Unreliable: false
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
     - Class: rviz/TF
       Enabled: true
       Filter (blacklist): ""
@@ -85,10 +113,6 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: true
-        lidar:
-          Value: true
-        map:
-          Value: true
         target:
           Value: true
         tracker:
@@ -106,10 +130,7 @@ Visualization Manager:
           target:
             {}
           tracker:
-            lidar:
-              {}
-            map:
-              {}
+            {}
       Update Interval: 0
       Value: true
     - Alpha: 1
@@ -278,7 +299,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 23.339855194091797
+      Distance: 25.76421356201172
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -286,17 +307,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 8.983177185058594
-        Y: 10.53957748413086
-        Z: 0.7291162014007568
+        X: 9.950909614562988
+        Y: 10.66385555267334
+        Z: 0.7977445125579834
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1
+      Pitch: 1.4999996423721313
       Target Frame: <Fixed Frame>
-      Yaw: 3.1465952396392822
+      Yaw: 3.1415960788726807
     Saved: ~
 Window Geometry:
   Displays:

@@ -1,0 +1,115 @@
+<launch>
+
+    <!-- Author: YueLin -->
+
+    <!-- Visualization -->
+    <arg name="rviz" default="true" />
+    <arg name="visualize" default="true" />
+
+    <!-- Models -->
+    <arg name="yolo" default="$(find tracker)/models/YOLO11n-Pose.trt" />
+    <arg name="monoloco" default="$(find tracker)/models/MonoLoco.trt" />
+
+    <!-- Hyperparameters -->
+    <arg name="tracker/m" default="2" />
+    <arg name="tracker/tau" default="0.5" />
+    <arg name="tracker/threshold" default="0.4" />
+
+    <!-- Tracker -->
+    <arg name="tracker/fps" default="10" />
+    <arg name="tracker/size" default="0.7" />
+    <arg name="tracker/max_vel_z" default="0.1" />
+    <arg name="tracker/max_acc_z" default="0.1" />
+    <arg name="tracker/max_vel_xy" default="2.0" />
+    <arg name="tracker/max_acc_xy" default="1.5" />
+    <arg name="tracker/max_vel_yaw" default="3.0" />
+    <arg name="tracker/max_acc_yaw" default="15.0" />
+
+    <!-- Camera settings -->
+    <arg name="camera/fps" default="30" />
+    <arg name="camera/beta" default="58.0" />
+    <arg name="camera/alpha" default="87.0" />
+    <arg name="camera/distance" default="3.0" />
+
+    <!-- Frames -->
+    <arg name="frame/world" default="world" />
+    <arg name="frame/tracker" default="body" />
+    <arg name="frame/target" default="target" />
+
+    <!-- Camera node -->
+    <node name="camera" pkg="tracker" type="camera.py" output="screen" >
+        <param name="fps" value="$(arg camera/fps)" type="int" />
+    </node>
+
+    <!-- Perception node -->
+    <node name="perception" pkg="tracker" type="perception" output="screen" >
+        <remap from="/tracker/odom" to="/ekf_fuser/odom" />
+
+        <param name="visualize" value="$(arg visualize)" type="bool" />
+
+        <param name="m" value="$(arg tracker/m)" type="int" />
+        <param name="tau" value="$(arg tracker/tau)" type="double" />
+        <param name="threshold" value="$(arg tracker/threshold)" type="double" />
+
+        <param name="yolo11pose" value="$(arg yolo)" type="string" />
+        <param name="monoloco" value="$(arg monoloco)" type="string" />
+
+        <param name="dps" value="$(arg camera/fps)" type="int" />
+        <param name="fps" value="$(arg tracker/fps)" type="int" />
+        <param name="camera/beta" value="$(arg camera/beta)" type="double" />
+        <param name="camera/alpha" value="$(arg camera/alpha)" type="double" />
+        <param name="camera/distance" value="$(arg camera/distance)" type="double" />
+
+        <param name="frame/world" value="$(arg frame/world)" type="string" />
+        <param name="frame/target" value="$(arg frame/target)" type="string" />
+        <param name="frame/tracker" value="$(arg frame/tracker)" type="string" />
+    </node>
+
+    <!-- Planning -->
+    <include file="$(find tracker)/launch/tracking.launch">
+
+        <arg name="topic/odom" value="/ekf_fuser/odom" />
+        <arg name="topic/command" value="/setpoints_cmd" />
+        <arg name="topic/lidar" value="/laserMapping/cloud_registered" />
+
+        <arg name="map/size" value="250" />
+        <arg name="map/height" value="1.5" />
+        <arg name="map/resolution" value="0.15" />
+        <arg name="map/name" value="$(arg frame/world)" />
+        
+        <arg name="k" value="16" />
+        <arg name="D" value="3.8" />
+        <arg name="m" value="$(arg tracker/m)" />
+        <arg name="tau" value="$(arg tracker/tau)" />
+        <arg name="beta" value="$(arg camera/beta)" />
+        <arg name="alpha" value="$(arg camera/alpha)" />
+        
+        <arg name="robot/size" value="$(arg tracker/size)" />
+        <arg name="robot/name" value="$(arg frame/tracker)" />
+        <arg name="robot/max_vel_z" value="$(arg tracker/max_vel_z)" />
+        <arg name="robot/max_acc_z" value="$(arg tracker/max_acc_z)" />
+        <arg name="robot/max_vel_xy" value="$(arg tracker/max_vel_xy)" />
+        <arg name="robot/max_acc_xy" value="$(arg tracker/max_acc_xy)" />
+        <arg name="robot/max_vel_yaw" value="$(arg tracker/max_vel_yaw)" />
+        <arg name="robot/max_acc_yaw" value="$(arg tracker/max_acc_yaw)" />
+    </include>
+
+    <!-- Controller -->
+    <!-- <include file="$(find l_ctrl)/launch/run_ctrl.launch" /> -->
+    <node name="remote_control" pkg="tracker" type="control.py" />
+
+    <!-- Robot model -->
+    <group ns="tracker">
+        <param name="robot_description"
+               command="$(find xacro)/xacro 
+               $(find simulator)/urdf/uav.xacro 
+               size:=0.5 name:=$(arg frame/tracker)" />
+    </group>
+
+    <!-- RVIZ -->
+    <group if="$(arg rviz)">
+        <node name="rviz" pkg="rviz" type="rviz"
+              args="-d $(find tracker)/rviz/realworld.rviz" />
+    </group>
+
+</launch>

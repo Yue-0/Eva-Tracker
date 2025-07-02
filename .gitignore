@@ -1,2 +1,5 @@
-build
-devel
+build/
+devel/
+src/quadrotor_msgs/
+
+src/tracker/models/*.trt

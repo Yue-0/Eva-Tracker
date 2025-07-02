@@ -1,0 +1,13 @@
+<launch>
+
+    <!-- Author: YueLin -->
+
+    <arg name="m" default="2" />
+    <arg name="tau" default="0.5" />
+
+    <node name="predictor" pkg="tracker" type="prediction" output="screen" >
+        <param name="m" value="$(arg m)" type="int" />
+        <param name="tau" value="$(arg tau)" type="double" />
+    </node>
+
+</launch>

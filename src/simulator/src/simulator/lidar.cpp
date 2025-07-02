@@ -8,12 +8,12 @@
 
 const double INF = std::numeric_limits<double>::infinity();
 
-namespace sim
+namespace simulator
 {
     sensor_msgs::PointCloud2 map2msg(Map& map, std::string& frame)
     {
         /* Map -> Point cloud */
-        PointCloud3D cloud;
+        pcl::PointCloud<pcl::PointXYZ> cloud;
         for(int x = 0; x < map.size[X]; x++)
             for(int y = 0; y < map.size[Y]; y++)
                 for(int z = 0; z < map.size[Z]; z++)
@@ -31,7 +31,8 @@ namespace sim
         return cloud2msg(cloud, frame);
     }
 
-    sensor_msgs::PointCloud2 cloud2msg(PointCloud3D& cloud, std::string& frame)
+    sensor_msgs::PointCloud2 cloud2msg(pcl::PointCloud<pcl::PointXYZ>& cloud, 
+                                       std::string& frame)
     {
         sensor_msgs::PointCloud2 msg;
         pcl::toROSMsg(cloud, msg);
@@ -47,9 +48,12 @@ namespace sim
                      double& height, double& angle, int& range)
     {
         static double pi = PI;
-        return depth(
+        if(range) return depth(
             n, frame, map, robot, publisher, 
             time, total, height, pi, angle, range
+        );
+        return n.createTimer(
+            ros::Duration(time), [](const ros::TimerEvent&){}, true
         );
     }
 
@@ -134,12 +138,11 @@ namespace sim
             int z2 = std::min(z0 + h0, map.size[Z] - 1);
             
             /* Laser scan */
-            PointCloud3D cloud;
+            pcl::PointCloud<pcl::PointXYZ> cloud;
             for(float rad = -angles; rad < angles; rad += angle)
             {
                 double sin = std::sin(rad + robot.pose.yaw);
                 double cos = std::cos(rad + robot.pose.yaw);
-                double sin0 = std::sin(rad), cos0 = std::cos(rad);
                 for(int z = z1; z <= z2; z += dz)
                 {
                     int t = 0;
@@ -152,9 +155,9 @@ namespace sim
                         if(map.map[x][y][z])
                         {
                             cloud.push_back(pcl::PointXYZ(
-                                t * map.resolution * cos0,
-                                t * map.resolution * sin0,
-                                (z - z0) * map.resolution
+                                t * map.resolution * cos + robot.pose.x,
+                                t * map.resolution * sin + robot.pose.y,
+                                z * map.resolution
                             ));
                             break;
                         }
@@ -168,5 +171,32 @@ namespace sim
             /* Publish */
             publisher.publish(cloud2msg(cloud, frame));
         });
+    }
+
+    nav_msgs::Path FoV(std::string frame,
+                       double distance, 
+                       double alpha,
+                       double beta)
+    {
+        nav_msgs::Path fov;
+        geometry_msgs::PoseStamped poses[5];
+        poses[4].header.frame_id = frame;
+        fov.header.frame_id = frame;
+        const double z = distance * std::tan(beta);
+        const double y = distance * std::tan(alpha);
+        for(int p = 0; p < 4; p++)
+        {
+            poses[p].pose.position.x = distance;
+            poses[p].pose.position.y = y * (p & 1? 1: -1);
+            poses[p].pose.position.z = z * (p >> 1? 1: -1);
+            poses[p].header.frame_id = fov.header.frame_id;
+            fov.poses.push_back(poses[4]);
+            fov.poses.push_back(poses[p]);
+        }
+        poses[2].pose.position.y *= -1;
+        poses[3].pose.position.y *= -1;
+        for(int p = 4; p; fov.poses.push_back(poses[--p]));
+        fov.poses.push_back(poses[3]);
+        return fov;
     }
 }

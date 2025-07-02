@@ -6,8 +6,9 @@
                 "/usr/include",
                 "/usr/include/pcl-1.10",
                 "/opt/ros/noetic/include",
-                "${workspaceFolder}/devel",
-                "${workspaceFolder}/src/*/include"
+                "/usr/local/cuda/include",
+                "${workspaceFolder}/src/*/include",
+                "${workspaceFolder}/devel/include"
             ],
             "defines": [],
             "cStandard": "c17",

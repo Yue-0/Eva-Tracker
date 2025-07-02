@@ -5,13 +5,28 @@
 #include <cmath>
 #include <unistd.h>
 
+#include <tf/tf.h>
+#include <ros/time.h>
+#include <tf/transform_broadcaster.h>
+
+#include "nav_msgs/Path.h"
 #include "nav_msgs/Odometry.h"
-#include "geometry_msgs/Twist.h"
+#include "geometry_msgs/Point.h"
+#include "geometry_msgs/PoseStamped.h"
+
+#include "quadrotor_msgs/PositionCommand.h"
 
 const double PI = std::acos(-1);
 
-namespace sim
+namespace simulator
 {
+    inline double clip(double rad)
+    {
+        if(rad > PI || rad <= -PI)
+            return 2 * std::floor(0.5 - rad / (2 * PI)) * PI + rad;
+        return rad;
+    }
+
     struct R3xSO2
     {
         double x, y, z, yaw;
@@ -25,19 +40,122 @@ namespace sim
         
         private:
             bool lock = false;
+            nav_msgs::Path path;
+            tf::Transform transform;
+            tf::Quaternion quaternion;
+            tf::TransformBroadcaster b;
         
         public:
-            Robot();
-            Robot(R3xSO2, double, double, double);
-        
-        public:
-            void move(double);
-            void control(R3xSO2);
-            void control(geometry_msgs::Twist::ConstPtr);
-            nav_msgs::Odometry msg(std::string&, std::string&);
-        
+            Robot()
+            {
+                vel.x = vel.y = vel.z = vel.yaw = 0;
+                pose.x = pose.y = pose.z = pose.yaw = 0;
+            }
+
+            Robot(R3xSO2 position, double l, double w, double h)
+            : length(l), width(w), height(h)
+            {
+                pose.x = position.x;
+                pose.y = position.y;
+                pose.z = position.z;
+                pose.yaw = position.yaw;
+                vel.x = vel.y = vel.z = vel.yaw = 0;
+            }
+
         private:
             void unlock() {lock = false;}
             void wait4lock() {while(lock) usleep(100U); lock = true;}
+        
+        public:
+            void move(double dt)
+            {
+                wait4lock();
+                pose.x += vel.x * dt;
+                pose.y += vel.y * dt;
+                pose.z += vel.z * dt;
+                pose.yaw = clip(pose.yaw + vel.yaw * dt);
+                unlock();
+            }
+
+            void control(R3xSO2 velocity)
+            {
+                wait4lock();
+                vel.x = velocity.x;
+                vel.y = velocity.y;
+                vel.z = velocity.z;
+                vel.yaw = velocity.yaw;
+                unlock();
+            }
+
+            void control(quadrotor_msgs::PositionCommand::ConstPtr cmd)
+            {
+                wait4lock();
+                vel.yaw = cmd->yaw_dot;
+                vel.x = cmd->velocity.x;
+                vel.y = cmd->velocity.y;
+                vel.z = cmd->velocity.z;
+                unlock();
+            }
+
+            void broadcast(nav_msgs::Odometry& odom, ros::Time time)
+            {
+                transform.setOrigin(tf::Vector3(
+                    odom.pose.pose.position.x,
+                    odom.pose.pose.position.y,
+                    odom.pose.pose.position.z 
+                ));
+                tf::quaternionMsgToTF(odom.pose.pose.orientation, quaternion);
+                transform.setRotation(quaternion);
+                b.sendTransform(tf::StampedTransform(
+                    transform, time, odom.header.frame_id, odom.child_frame_id
+                ));
+            }
+
+            geometry_msgs::PoseStamped msg(std::string& frame)
+            {
+                geometry_msgs::PoseStamped ps;
+                ps.pose.position.x = pose.x;
+                ps.pose.position.y = pose.y;
+                ps.pose.position.z = pose.z;
+                ps.header.frame_id = frame;
+                ps.pose.orientation = tf::createQuaternionMsgFromYaw(pose.yaw);
+                return ps;
+            }
+            
+            nav_msgs::Odometry msg(std::string& frame, std::string& child)
+            {
+                nav_msgs::Odometry odom;
+                odom.child_frame_id = child;
+                odom.header.frame_id = frame;
+                odom.twist.twist.linear.x = vel.x;
+                odom.twist.twist.linear.y = vel.y;
+                odom.twist.twist.linear.z = vel.z;
+                odom.pose.pose.position.x = pose.x;
+                odom.pose.pose.position.y = pose.y;
+                odom.pose.pose.position.z = pose.z;
+                odom.twist.twist.angular.z = vel.yaw;
+                odom.pose.pose.orientation = tf::createQuaternionMsgFromYaw(
+                    pose.yaw
+                );
+                return odom;
+            }
+
+            nav_msgs::Path trajectoy(std::string frame,
+                                     nav_msgs::Odometry& odom)
+            {
+                geometry_msgs::PoseStamped pose;
+                path.header.frame_id = frame;
+                pose.pose = odom.pose.pose;
+                pose.header = odom.header;
+                if(!path.poses.empty())
+                {
+                    geometry_msgs::Point p = path.poses.back().pose.position;
+                    if(std::fabs(odom.pose.pose.position.x - p.x) < 1e-2 &&
+                       std::fabs(odom.pose.pose.position.y - p.y) < 1e-2 &&
+                       std::fabs(odom.pose.pose.position.z - p.z) < 1e-2)
+                        return path;
+                }
+                path.poses.push_back(pose); return path;
+            }
     };
 }

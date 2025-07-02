@@ -6,12 +6,12 @@
 
     <xacro:property name="radius" value="$(arg size)" />
 
-    <link name="target">
+    <link name="$(arg name)">
         <visual>
-            <origin xyz="0 0 -0.5" rpy="0 0 3.141592653589793" />
+            <origin xyz="0 0 -0.5" rpy="0 0 1.5707963267948966" />
             <geometry>
                 <mesh filename="package://simulator/meshes/car.dae" 
-                      scale="${radius * 0.05} ${radius * 0.05} ${radius * 0.05}" 
+                      scale="${radius * 0.2} ${radius * 0.2} ${radius * 0.2}" 
                 />
             </geometry>
         </visual>

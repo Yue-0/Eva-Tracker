@@ -9,6 +9,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall")
 # Find catkin macros and libraries
 find_package(catkin REQUIRED COMPONENTS
     pcl_conversions
+    quadrotor_msgs
     geometry_msgs
     sensor_msgs
     roscpp
@@ -24,39 +25,19 @@ include_directories(
     ${catkin_INCLUDE_DIRS}
 )
 
-# Declare C++ libraries
-add_library(nav
-    src/planner/nav.cpp
-)
-add_library(simulator 
-    src/simulator/env.cpp
+# Declare C++ library
+add_library(simulator
     src/simulator/map.cpp
     src/simulator/lidar.cpp
-    src/simulator/robot.cpp
+    src/simulator/planner.cpp
+    src/simulator/tracker.cpp
 )
 
-# Declare C++ executables
-add_executable(fov src/fov.cpp)
-add_executable(sot src/sot.cpp)
+# Declare C++ executable
 add_executable(env src/simulator.cpp)
-add_executable(pose src/transform.cpp)
-add_executable(trajectory src/trajectory.cpp)
 
-# Specify libraries to link a library or executable target against
-target_link_libraries(fov
-    ${catkin_LIBRARIES}
-)
-target_link_libraries(sot
-    ${catkin_LIBRARIES}
-)
+# Specify library to link a library or executable target against
 target_link_libraries(env
-    nav
     simulator
-    ${catkin_LIBRARIES}
-)
-target_link_libraries(pose
-    ${catkin_LIBRARIES}
-)
-target_link_libraries(trajectory
     ${catkin_LIBRARIES}
 )

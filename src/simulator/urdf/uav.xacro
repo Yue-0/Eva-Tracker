@@ -6,7 +6,7 @@
 
     <xacro:property name="radius" value="$(arg size)" />
 
-    <link name="tracker">
+    <link name="$(arg name)">
         <visual>
             <geometry>
                 <mesh filename="package://simulator/meshes/uav.dae" 

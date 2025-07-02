@@ -1,0 +1,11 @@
+<launch>
+    <arg name="frame/tracker" default="body" />
+    <group ns="tracker">
+        <param name="robot_description"
+               command="$(find xacro)/xacro 
+               $(find simulator)/urdf/uav.xacro 
+               size:=0.5 name:=$(arg frame/tracker)" />
+    </group>
+    <node name="rviz" pkg="rviz" type="rviz"
+            args="-d $(find tracker)/rviz/realworld.rviz" />
+</launch>
