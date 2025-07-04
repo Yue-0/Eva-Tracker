@@ -280,16 +280,12 @@ int main(int argc, char* argv[])
             double t = (cmd.header.stamp - plan.header.stamp).toSec();
             if(t > trajectory.duration() || t < 0)
             {
-                stop: 
                 pos = now; vel.setZero(); acc.setZero(); jerk.setZero();
             }
             else
             {
                 pos = trajectory.pos(t);
-                if(!initializer.visible(map, pos.head(3), now.head(3)))
-                    goto stop;
                 vel = trajectory.vel(t);
-                if(vel.norm() > 2.0) goto stop;
                 acc = trajectory.acc(t);
                 jerk = trajectory.jerk(t);
             }

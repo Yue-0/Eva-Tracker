@@ -15,6 +15,7 @@ namespace eva_tracker
 
         public:
             Predictor(Bezier*);
+            ~Predictor() {delete[] factorial;};
 
         public:
             void predict(const Eigen::Matrix3Xd&);

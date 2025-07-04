@@ -6,13 +6,16 @@ namespace eva_tracker
 {
     Predictor::Predictor(Bezier* b): m(b->n >> 1), bezier(b)
     {
-        /* Initialize variables */
+        /* Initialize factorial */
         int n = b->n;
-        factorial = b->factorial;
+        int c = n * 2 - 2;
+        factorial = new int[c];
+        for(int i = *factorial = 1; i < c; i++)
+            factorial[i] = i * factorial[i - 1];
 
         /* Initialize matrix and vector */
         Eigen::MatrixXd a = Eigen::MatrixXd::Zero((n / 2 + 1) * 3, 3 * (1 + n));
-        int c = a.rows() + (n + 1) * 3;
+        c = a.rows() + (n + 1) * 3;
         vector = Eigen::VectorXd::Zero(c);
         matrix = Eigen::MatrixXd::Zero(c, c);
 
@@ -63,7 +66,7 @@ namespace eva_tracker
         matrix.block(c * 3, 0, n * 3, c * 3) = a;
 
         /* Calculate the inverse matrix */
-        matrix = matrix.inverse();
+        matrix = matrix.inverse().topRows(c * 3);
     }
 
     void Predictor::predict(const Eigen::Matrix3Xd& observation)
