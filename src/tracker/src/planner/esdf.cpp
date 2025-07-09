@@ -36,8 +36,8 @@ namespace eva_tracker
         alpha = std::tan(alpha / 2);
         offset << 0, distance * alpha, distance * beta;
         size[X] = std::round(distance * r) + 2;
-        size[Y] = std::round(offset[Y] * r * 2) + 2;
-        size[Z] = std::round(offset[Z] * r * 2) + 2;
+        size[Y] = std::round(offset.y() * r * 2) + 2;
+        size[Z] = std::round(offset.z() * r * 2) + 2;
 
         /* Initialize the maximum value */
         maximum = -std::numeric_limits<double>::infinity();
@@ -67,9 +67,9 @@ namespace eva_tracker
         /* Initialize constants */
         resolution = r; r = 1 / r;
         offset = robot * (expansion / 2);
-        size[X] = std::round(robot[X] * r * expansion);
-        size[Y] = std::round(robot[Y] * r * expansion);
-        size[Z] = std::round(robot[Z] * r * expansion);
+        size[X] = std::round(robot.x() * r * expansion);
+        size[Y] = std::round(robot.y() * r * expansion);
+        size[Z] = std::round(robot.z() * r * expansion);
 
         /* Initialize the maximum value */
         maximum = -std::numeric_limits<double>::infinity();
@@ -81,12 +81,12 @@ namespace eva_tracker
             for(int y = 0; y < size[Y]; y++)
                 for(int z = 0; z < size[Z]; z++)
                     data[x][y][z] = !(
-                        x - expand[X] > 0 && 
-                        y - expand[Y] > 0 && 
-                        z - expand[Z] > 0 &&
-                        x + expand[X] < size[X] - 1 &&
-                        y + expand[Y] < size[Y] - 1 &&
-                        z + expand[Z] < size[Z] - 1
+                        x - expand.x() > 0 && 
+                        y - expand.y() > 0 && 
+                        z - expand.z() > 0 &&
+                        x + expand.x() < size[X] - 1 &&
+                        y + expand.y() < size[Y] - 1 &&
+                        z + expand.z() < size[Z] - 1
                     );
         
         /* Build the ESDF and release memory */
@@ -146,9 +146,9 @@ namespace eva_tracker
             j = (n >> 1) & 1;
             i = (n >> 2) & 1;
             d = esdf[x[!i]][y[!j]][z[!k]];
-            g[X] += v[j] * w[k] * d * (i? -1: 1);
-            g[Y] += u[i] * w[k] * d * (j? -1: 1);
-            g[Z] += u[i] * v[j] * d * (k? -1: 1);
+            g.x() += v[j] * w[k] * d * (i? -1: 1);
+            g.y() += u[i] * w[k] * d * (j? -1: 1);
+            g.z() += u[i] * v[j] * d * (k? -1: 1);
         }
         return g;
     }

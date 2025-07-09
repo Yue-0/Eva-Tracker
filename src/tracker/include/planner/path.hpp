@@ -8,7 +8,6 @@ namespace eva_tracker
     {
         private:
             double distance, step;
-            const int X = 0, Y = 1, Z = 2;
             const double PI = std::acos(-1);
             const double RA = PI / 2;
 

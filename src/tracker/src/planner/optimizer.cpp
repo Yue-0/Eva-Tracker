@@ -133,8 +133,8 @@ namespace eva_tracker
                         beta(s, order) = t[div] * minco->div(s, div);
                     states[order] = c * beta.col(order);
                 }
-                sin = std::sin(states[0][3]);
-                cos = std::cos(states[0][3]);
+                sin = std::sin(states[0].w());
+                cos = std::cos(states[0].w());
                 w = k * (!j || j == kappa? 0.5: 1);
                 dr << -sin, cos, 0, -cos, -sin, 0, 0, 0, 0;
                 rotate << cos, sin, 0, -sin, cos, 0, 0, 0, 1;
@@ -159,7 +159,7 @@ namespace eva_tracker
                 ).dot(grad));
 
                 /* Angle penalty */
-                phi = states[0][3] - std::atan2(target[1], target[0]);
+                phi = states[0].w() - std::atan2(target.y(), target.x());
                 g = w * lambda_a;
                 p = 1 - std::cos(phi);
                 grad[0] = std::sin(phi);
@@ -172,7 +172,7 @@ namespace eva_tracker
                 dc.block(i * S, 3, S, 1) += g * times[i] 
                                           * grad[0] * beta.col(0);
                 dt[i] += g * (p + t[1] * grad[0] * (states[1][3] - (
-                    target[0] * point[1] - target[1] * point[0]
+                    target.x() * point.y() - target.y() * point.x()
                 ) * grad[1]));
 
                 /* Occlusion penalty and safety penalty */
@@ -212,7 +212,7 @@ namespace eva_tracker
                 }
 
                 /* Horizontal velocity penalty */
-                point.head(2) = states[1].head(2);
+                point.head(3) = states[1].head(3);
                 if((p = point.head(2).squaredNorm() - vh2) > 0)
                 {
                     costs[5] += g * p * times[i];
@@ -226,19 +226,18 @@ namespace eva_tracker
                 }
 
                 /* Vertical velocity penalty */
-                point[0] = states[1][2];
-                if((p = point[0] * point[0] - vv2) > 0)
+                if((p = point.z() * point.z() - vv2) > 0)
                 {
                     costs[5] += g * p * times[i];
                     dc.block(i * S, 2, S, 1) += 2 * g 
                                               * times[i] 
-                                              * point[0]
+                                              * point.z()
                                               * beta.col(1);
-                    dt[i] += g * (2 * t[1] * point[0] * states[2][2] + p);
+                    dt[i] += g * (2 * t[1] * point.z() * states[2].z() + p);
                 }
 
                 /* Angular velocity penalty */
-                point[0] = states[1][3];
+                point[0] = states[1].w();
                 if((p = point[0] * point[0] - va2) > 0)
                 {
                     costs[5] += g * p * times[i];
@@ -246,11 +245,11 @@ namespace eva_tracker
                                               * times[i] 
                                               * point[0]
                                               * beta.col(1);
-                    dt[i] += g * (2 * t[1] * point[0] * states[2][3] + p);
+                    dt[i] += g * (2 * t[1] * point[0] * states[2].w() + p);
                 }
 
                 /* Horizontal acceleration penalty */
-                point.head(2) = states[2].head(2);
+                point.head(3) = states[2].head(3);
                 if((p = point.head(2).squaredNorm() - ah2) > 0)
                 {
                     costs[5] += g * p * times[i];
@@ -264,19 +263,18 @@ namespace eva_tracker
                 }
 
                 /* Vertical acceleration penalty */
-                point[0] = states[2][2];
-                if((p = point[0] * point[0] - av2) > 0)
+                if((p = point.z() * point.z() - av2) > 0)
                 {
                     costs[5] += g * p * times[i];
                     dc.block(i * S, 2, S, 1) += 2 * g 
                                               * times[i] 
-                                              * point[0]
+                                              * point.z()
                                               * beta.col(2);
-                    dt[i] += g * (2 * t[1] * point[0] * states[3][2] + p);
+                    dt[i] += g * (2 * t[1] * point.z() * states[3].z() + p);
                 }
 
                 /* Angular acceleration penalty */
-                point[0] = states[2][3];
+                point[0] = states[2].w();
                 if((p = point[0] * point[0] - aa2) > 0)
                 {
                     costs[5] += g * p * times[i];
@@ -284,7 +282,7 @@ namespace eva_tracker
                                               * times[i] 
                                               * point[0]
                                               * beta.col(2);
-                    dt[i] += g * (2 * t[1] * point[0] * states[3][2] + p);
+                    dt[i] += g * (2 * t[1] * point[0] * states[3].w() + p);
                 }
             }
         }

@@ -219,7 +219,9 @@ namespace simulator
                     continue;
                 
                 /* Calculate cost value */
-                double cost = f(g[index], x0, y0, x, y);
+                double cost = std::hypot(x0 - x, y0 - y) + f(
+                    g[index], x0, y0, x, y
+                );
 
                 /* Update the point */
                 if(cost < g[idx])

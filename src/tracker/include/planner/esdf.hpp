@@ -48,12 +48,12 @@ namespace eva_tracker
             
             void interpolation(Eigen::Vector3d& p, int* coordinate, double* k)
             {
-                coordinate[0] = p[X]; coordinate[1] = coordinate[0] + 1;
-                coordinate[2] = p[Y]; coordinate[3] = coordinate[2] + 1;
-                coordinate[4] = p[Z]; coordinate[5] = coordinate[4] + 1;
-                k[0] = p[X] - coordinate[0]; k[1] = coordinate[1] - p[X];
-                k[2] = p[Y] - coordinate[2]; k[3] = coordinate[3] - p[Y];
-                k[4] = p[Z] - coordinate[4]; k[5] = coordinate[5] - p[Z];
+                coordinate[0] = p.x(); coordinate[1] = coordinate[0] + 1;
+                coordinate[2] = p.y(); coordinate[3] = coordinate[2] + 1;
+                coordinate[4] = p.z(); coordinate[5] = coordinate[4] + 1;
+                k[0] = p.x() - coordinate[0]; k[1] = coordinate[1] - p.x();
+                k[2] = p.y() - coordinate[2]; k[3] = coordinate[3] - p.y();
+                k[4] = p.z() - coordinate[4]; k[5] = coordinate[5] - p.z();
             }
     };
 }

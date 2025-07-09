@@ -74,7 +74,7 @@ int main(int argc, char* argv[])
     eva_tracker::Trajectory trajectory;
 
     /* Initialize path generator */
-    const double distance = fov.argmax()[0];
+    const double distance = fov.argmax().x();
     eva_tracker::PathGenerator initializer(
         distance, nh.param("delta_theta", 1.) * PI / 180.
     );
@@ -152,11 +152,11 @@ int main(int argc, char* argv[])
     Eigen::Vector3d target[2]; target[1][0] = false;
     ros::Subscriber perception = nh.subscribe<nav_msgs::Odometry>(
         "/target/odom", 1, [&target](nav_msgs::Odometry::ConstPtr odom){
-            target[0][0] = odom->pose.pose.position.x;
-            target[0][1] = odom->pose.pose.position.y;
-            target[0][2] = odom->pose.pose.position.z;
-            target[1][1] = odom->twist.twist.linear.y;
-            target[1][2] = odom->twist.twist.linear.z;
+            target[0].x() = odom->pose.pose.position.x;
+            target[0].y() = odom->pose.pose.position.y;
+            target[0].z() = odom->pose.pose.position.z;
+            target[1].y() = odom->twist.twist.linear.y;
+            target[1].z() = odom->twist.twist.linear.z;
             target[1][0] = true;
         }
     );
@@ -249,10 +249,10 @@ int main(int argc, char* argv[])
                 pose.header.stamp = plan.header.stamp;
                 Eigen::VectorXd pos = trajectory.pos(t);
                 pose.header.frame_id = plan.header.frame_id;
-                pose.pose.orientation = tf::createQuaternionMsgFromYaw(pos[3]);
-                pose.pose.position.x = pos[0];
-                pose.pose.position.y = pos[1];
-                pose.pose.position.z = pos[2];
+                pose.pose.orientation = tf::createQuaternionMsgFromYaw(pos.w());
+                pose.pose.position.x = pos.x();
+                pose.pose.position.y = pos.y();
+                pose.pose.position.z = pos.z();
                 plan.poses.push_back(pose);
             }
             visualizer.publish(plan);
@@ -292,22 +292,22 @@ int main(int argc, char* argv[])
             states[0].col(1) = vel;
 
             /* Publish control command */
-            cmd.yaw = pos[3];
-            cmd.position.x = pos[0];
-            cmd.position.y = pos[1];
-            cmd.position.z = pos[2];
-            cmd.velocity.x = vel[0];
-            cmd.velocity.y = vel[1];
-            cmd.velocity.z = vel[2];
-            cmd.acceleration.x = acc[0];
-            cmd.acceleration.y = acc[1];
-            cmd.acceleration.z = acc[2];
+            cmd.yaw = pos.w();
+            cmd.position.x = pos.x();
+            cmd.position.y = pos.y();
+            cmd.position.z = pos.z();
+            cmd.velocity.x = vel.x();
+            cmd.velocity.y = vel.y();
+            cmd.velocity.z = vel.z();
+            cmd.acceleration.x = acc.x();
+            cmd.acceleration.y = acc.y();
+            cmd.acceleration.z = acc.z();
             if(cmd.yaw > PI || cmd.yaw <= -PI)
                 cmd.yaw += 2 * std::floor(0.5 - cmd.yaw / (2 * PI)) * PI;
-            cmd.jerk.x = jerk[0];
-            cmd.jerk.y = jerk[1];
-            cmd.jerk.z = jerk[2];
-            cmd.yaw_dot = vel[3];
+            cmd.jerk.x = jerk.x();
+            cmd.jerk.y = jerk.y();
+            cmd.jerk.z = jerk.z();
+            cmd.yaw_dot = vel.w();
             publisher.publish(cmd);
         }
     );

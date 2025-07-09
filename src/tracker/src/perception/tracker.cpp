@@ -94,15 +94,15 @@ namespace eva_tracker
         if(!path.poses.empty())
         {
             geometry_msgs::Point p = path.poses.back().pose.position;
-            if(std::fabs(position[0] - p.x) < 1e-2 &&
-               std::fabs(position[1] - p.y) < 1e-2 &&
-               std::fabs(position[2] - p.z) < 1e-2) return &path;
+            if(std::fabs(position.x() - p.x) < 1e-2 &&
+               std::fabs(position.y() - p.y) < 1e-2 &&
+               std::fabs(position.z() - p.z) < 1e-2) return &path;
         }
         geometry_msgs::PoseStamped ps;
         ps.pose.orientation = tf::createQuaternionMsgFromYaw(yaw);
-        ps.pose.position.x = position[0];
-        ps.pose.position.y = position[1];
-        // ps.pose.position.z = position[2];
+        ps.pose.position.x = position.x();
+        ps.pose.position.y = position.y();
+        // ps.pose.position.z = position.z();
         ps.pose.position.z = 1.2;  // FIXME
         ps.header = path.header;
         path.poses.push_back(ps);
@@ -123,9 +123,9 @@ namespace eva_tracker
 
     void Tracker::localization(nav_msgs::Odometry::ConstPtr odom)
     {
-        point[0] = odom->pose.pose.position.x;
-        point[1] = odom->pose.pose.position.y;
-        point[2] = odom->pose.pose.position.z;
+        point.x() = odom->pose.pose.position.x;
+        point.y() = odom->pose.pose.position.y;
+        point.z() = odom->pose.pose.position.z;
         quaternion.w() = odom->pose.pose.orientation.w;
         quaternion.x() = odom->pose.pose.orientation.x;
         quaternion.y() = odom->pose.pose.orientation.y;

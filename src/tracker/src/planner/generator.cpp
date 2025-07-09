@@ -35,13 +35,13 @@ namespace eva_tracker
             observation.head(2) = target.head(2) - distance * (
                 target.head(2) - start.head(2)
             ).normalized();
-            observation[Z] = target[Z];
+            observation.z() = target.z();
 
             /* Calculate yaw angle */
             int direction = 0;
             double angle = 0., theta = std::atan2(
-                observation[Y] - target[Y], 
-                observation[X] - target[X]
+                observation.y() - target.y(), 
+                observation.x() - target.x()
             );
 
             /* Check visibility */

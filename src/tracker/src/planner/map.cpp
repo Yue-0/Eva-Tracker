@@ -82,10 +82,10 @@ namespace eva_tracker
         expansion = std::round(expansion * r);
 
         /* Clear map */
-        int x1 = std::max((center[X] + offset[X] - range) * r, 0.);
-        int y1 = std::max((center[Y] + offset[Y] - range) * r, 0.);
-        int x2 = std::min((center[X] + offset[X] + range) * r, size[X] - 1.);
-        int y2 = std::min((center[Y] + offset[Y] + range) * r, size[Y] - 1.);
+        int x1 = std::max((center.x() + offset.x() - range) * r, 0.);
+        int y1 = std::max((center.y() + offset.y() - range) * r, 0.);
+        int x2 = std::min((center.x() + offset.x() + range) * r, size[X] - 1.);
+        int y2 = std::min((center.y() + offset.y() + range) * r, size[Y] - 1.);
         for(int x = x1; x <= x2; x++)
             for(int y = y1; y <= y2; y++)
                 for(int z = 0; z < size[Z]; z++)
@@ -97,14 +97,14 @@ namespace eva_tracker
         {
             /* Filter the target */
             if(target[1][0] > 1e-3 && 
-               std::fabs(point.x - target[0][0]) < target[1][1] &&
-               std::fabs(point.y - target[0][1]) < target[1][1] &&
-               std::fabs(point.z - target[0][2]) < target[1][2]) continue;
+               std::fabs(point.x - target[0].x()) < target[1][1] &&
+               std::fabs(point.y - target[0].y()) < target[1][1] &&
+               std::fabs(point.z - target[0].z()) < target[1][2]) continue;
 
             /* Boundary check */
-            int x0 = std::round((point.x + offset[X]) * r);
-            int y0 = std::round((point.y + offset[Y]) * r);
-            int z0 = std::round((point.z + offset[Z]) * r);
+            int x0 = std::round((point.x + offset.x()) * r);
+            int y0 = std::round((point.y + offset.y()) * r);
+            int z0 = std::round((point.z + offset.z()) * r);
             if(std::min(std::min(x0, y0), z0) < 0 ||
                x0 >= size[X] || y0 >= size[Y] || z0 >= size[Z])
                 continue;
@@ -116,9 +116,9 @@ namespace eva_tracker
         for(pcl::PointXYZ point: filtered)
         {
             /* Discretize */
-            int x0 = std::round((point.x + offset[X]) * r);
-            int y0 = std::round((point.y + offset[Y]) * r);
-            int z0 = std::round((point.z + offset[Z]) * r);
+            int x0 = std::round((point.x + offset.x()) * r);
+            int y0 = std::round((point.y + offset.y()) * r);
+            int z0 = std::round((point.z + offset.z()) * r);
             points[x0][y0][z0] = point;
             flag[x0][y0][z0] = true;
 
