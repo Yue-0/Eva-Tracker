@@ -1,5 +1,5 @@
 build/
 devel/
+.catkin_workspace
 src/quadrotor_msgs/
-
 src/tracker/models/*.trt

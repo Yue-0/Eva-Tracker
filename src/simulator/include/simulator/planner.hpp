@@ -33,7 +33,7 @@ namespace simulator
             }
             int encode(int x, int y, const int cols) {return x + y * cols;}
             double f(double g, int x, int y, int xg, int yg) {
-                return g + std::sqrt(std::pow(x - xg, 2) + std::pow(y - yg, 2));
+                return g + std::hypot(x - xg, y - yg);
             }
             std::vector<std::pair<double, double>> astar(int, int, int, int);
 

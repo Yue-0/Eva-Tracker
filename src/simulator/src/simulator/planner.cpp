@@ -176,8 +176,7 @@ namespace simulator
         int x, y, x0, y0, idx, index = encode(xs, ys, X);
 
         /* Push the first point into the queue */
-        visited[index] = !(g[index] = 0);
-        queue.push(std::make_pair(-f(0, xs, ys, xg, yg), index));
+        queue.push(std::make_pair(-f(g[index] = 0, xs, ys, xg, yg), index));
 
         /* Main loop */
         while(!queue.empty())
@@ -185,7 +184,12 @@ namespace simulator
             /* Dequeue a point */
             index = queue.top().second;
             decode(index, &x0, &y0, X);
-            visited[index] = true; queue.pop();
+            queue.pop();
+
+            /* Check visited */
+            if(visited[index])
+                continue;
+            visited[index] = true; 
 
             /* If found a path */
             if(x0 == xg && y0 == yg)
@@ -219,9 +223,7 @@ namespace simulator
                     continue;
                 
                 /* Calculate cost value */
-                double cost = std::hypot(x0 - x, y0 - y) + f(
-                    g[index], x0, y0, x, y
-                );
+                double cost = f(g[index], x, y, x0, y0);
 
                 /* Update the point */
                 if(cost < g[idx])

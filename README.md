@@ -44,13 +44,7 @@ source devel/setup.zsh
 roslaunch tracker tracking.launch
 ```
 
-The following command is used to reproduce our simulation experiment:
-
-```shell
-rosbag play bag/benchmark.bag
-```
-
-Or, you can directly use `2D Nav Goal` to control the target movement.
+Use `2D Nav Goal` to control the target movement.
 
 ### Run in real world
 

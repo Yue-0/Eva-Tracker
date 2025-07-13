@@ -212,7 +212,7 @@ namespace eva_tracker
                 }
 
                 /* Horizontal velocity penalty */
-                point.head(3) = states[1].head(3);
+                point = states[1].head(3);
                 if((p = point.head(2).squaredNorm() - vh2) > 0)
                 {
                     costs[5] += g * p * times[i];
@@ -249,7 +249,7 @@ namespace eva_tracker
                 }
 
                 /* Horizontal acceleration penalty */
-                point.head(3) = states[2].head(3);
+                point = states[2].head(3);
                 if((p = point.head(2).squaredNorm() - ah2) > 0)
                 {
                     costs[5] += g * p * times[i];
