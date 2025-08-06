@@ -4,9 +4,9 @@
 
 __Eva-Tracker__ is an efficient visibility-aware trajectory planning framework for aerial tracking that does not rely on environmental ESDF or safe corridors.
 
-<!-- ## Paper
+## Paper
 
-__Eva-Tracker: ESDF-update-free Visibility-aware Trajectory Planning for Aerial Tracking__. The full paper will be published soon. -->
+__Eva-Tracker: ESDF-update-free Visibility-aware Trajectory Planning for Aerial Tracking__. The full paper will be published soon.
 
 ## Quick Start
 
@@ -93,3 +93,5 @@ If you turn the 8th channel of the remote controller from down to the middle, th
 We use the pre-trained model of [YOLOv11](https://github.com/ultralytics/ultralytics)-Pose for human keypoint detection.
 
 We use [LBFGS-Lite](https://github.com/ZJU-FAST-Lab/LBFGS-Lite) to solve numerical optimization problems.
+
+Our real-world drone is provided by __Differential Robotics__.
