@@ -2,11 +2,13 @@
 
 ## Introduction
 
-__Eva-Tracker__ is an efficient visibility-aware trajectory planning framework for aerial tracking that does not rely on environmental ESDF or safe corridors.
+__Eva-Tracker__ is an __E__ SDF-update-free __V__ isibility- __A__ ware trajectory planning framework for aerial tracking.
 
 ## Paper
 
-__Eva-Tracker: ESDF-update-free Visibility-aware Trajectory Planning for Aerial Tracking__. The full paper will be published soon.
+__Eva-Tracker: ESDF-update-free, Visibility-aware Planning with Target Reacquisition for Robust Aerial Tracking__. The full paper will be published soon.
+
+Author: [Yue Lin](https://github.com/Yue-0).
 
 ## Quick Start
 
