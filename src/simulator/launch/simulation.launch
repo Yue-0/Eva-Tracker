@@ -43,6 +43,18 @@
     <arg name="tracker/distance" default="3.36" />
     <arg name="tracker/frame" default="tracker" />
 
+    <!-- Planner -->
+    <arg name="planner/past" default="3" />
+    <arg name="planner/memory" default="8" />
+    <arg name="planner/iters" default="64" />
+    <arg name="planner/eps" default="1e-6" />
+    <arg name="planner/lambda" default="10" />
+    <arg name="planner/steps" default="1e20" />
+    <arg name="planner/delta" default="1e-6" />
+    <arg name="planner/wolfe" default="1e-9" />
+    <arg name="planner/armijo" default="1e-4" />
+    <arg name="planner/epsilon" default="1e-5" />
+
     <!-- Lidar -->
     <arg name="lidar/max" default="4" />
     <arg name="lidar/dh" default="0.25" />
@@ -92,6 +104,17 @@
         <param name="tracker/alpha" value="$(arg tracker/alpha)" type="double" />
         <param name="tracker/interval" value="$(arg tracker/tau)" type="double" />
         <param name="tracker/distance" value="$(arg tracker/distance)" type="double" />
+
+        <param name="planner/past" value="$(arg planner/past)" type="int" />
+        <param name="planner/eps" value="$(arg planner/eps)" type="double" />
+        <param name="planner/iters" value="$(arg planner/iters)" type="int" />
+        <param name="planner/memory" value="$(arg planner/memory)" type="int" />
+        <param name="planner/steps" value="$(arg planner/steps)" type="double" />
+        <param name="planner/delta" value="$(arg planner/delta)" type="double" />
+        <param name="planner/wolfe" value="$(arg planner/wolfe)" type="double" />
+        <param name="planner/armijo" value="$(arg planner/armijo)" type="double" />
+        <param name="planner/lambda" value="$(arg planner/lambda)" type="double" />
+        <param name="planner/epsilon" value="$(arg planner/epsilon)" type="double" />
 
         <param name="map/seed" value="$(arg map/seed)" type="int" />
         <param name="map/frame" value="$(arg map/frame)" type="string" />

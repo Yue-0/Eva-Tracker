@@ -164,7 +164,7 @@ int main(int argc, char* argv[])
         nh.param("target/max_acc", 1.0),
         nh.param("planner/lambda", 1.0),
         nh.param("planner/past", 3),
-        nh.param("planner/memory", 8),
+        nh.param("planner/memory", 64),
         nh.param("planner/iters", 100),
         nh.param("planner/eps", 1e-6),
         nh.param("planner/steps", 1e20),
