@@ -17,7 +17,7 @@ namespace simulator
             int observations, samples, step;
         
         public:
-            Tracker(std::string, double, int, double);
+            Tracker(std::string map, double fps, int sample, double interval);
             void update(geometry_msgs::PoseStamped);
     };
 }

@@ -12,35 +12,64 @@ namespace simulator
         private:
             Map* map;
             Robot* car;
-            double time, ds, vm, am;
+            const double time, ds, vm, am;
+
+            /* For A-Star */
+            double* g;
+            int* parent;
+            bool* visited;
+
+            /* For B-Spline */
+            Eigen::Vector3d cp, cv, ca;
+
+            /* For L-BFGS */
+            const double lambda;
+            const int past, mem, iterations;
+            Eigen::VectorXd limit, memory, pf;
+            const double eps, steps, delta, epsilon, wolfe, armijo;
+
 
         public:
-            Planner(Map*, Robot*, double, double, double);
+            ~Planner();
+            Planner(Map* world, Robot* robot, 
+                    double dt, double vel, double acc,
+                    double lmd, int pst, int m, int itr,
+                    double e, double step, double del,
+                    double ep, double wol, double arm);
 
         public:
-            R3xSO2 control(std::vector<std::pair<double, double>>&);
-            std::vector<std::pair<double, double>> plan(double, double);
-            nav_msgs::Path msg(
-                std::string&, std::vector<std::pair<double, double>>&
-            );
+            nav_msgs::Path msg(std::string& frame, 
+                               std::vector<Eigen::Vector2d>& ctrl);
+            std::vector<Eigen::Vector2d> plan(double xg, double yg);
+            Eigen::Vector4d control(std::vector<Eigen::Vector2d>& path);
         
         private:
-            void bfs(int*, int*);
-
             /* A* algorithm */
-            void decode(int code, int* x, int* y, const int cols){
-                *y = code / cols; *x = code - *y * cols;
+            void bfs(int*, int*);
+            void decode(int code, int* x, int* y) {
+                *y = code / map->size.x(); *x = code - *y * map->size.x();
             }
-            int encode(int x, int y, const int cols) {return x + y * cols;}
-            double f(double g, int x, int y, int xg, int yg) {
-                return g + std::hypot(x - xg, y - yg);
+            int encode(int x, int y) {return x + y * map->size.x();}
+            double f(double g0, int x, int y, int xg, int yg) {
+                return g0 + std::hypot(x - xg, y - yg);
             }
-            std::vector<std::pair<double, double>> astar(int, int, int, int);
+            std::vector<Eigen::Vector2d> astar(int, int, int, int);
 
             /* B-spline optimization */
-            std::vector<std::pair<double, double>> bspline(
-                const std::vector<std::pair<double, double>>&
-            );
-            double optimize(std::vector<std::pair<double, double>>&);
+            double optimize(Eigen::Matrix2Xd&);
+            Eigen::Matrix2Xd bspline(const std::vector<Eigen::Vector2d>&);
+            double cost(const Eigen::VectorXd& var, Eigen::VectorXd& grad);
+            inline bool search(Eigen::VectorXd& gradient, double* step,
+                               Eigen::VectorXd& x, double* value,
+                               const Eigen::VectorXd& direction,
+                               const Eigen::VectorXd& x0,
+                               const Eigen::VectorXd& g0);
+            bool convergance(const Eigen::VectorXd& x, 
+                             const Eigen::VectorXd& grad)
+            {
+                return epsilon >= grad.cwiseAbs().maxCoeff() / std::max(
+                    x.cwiseAbs().maxCoeff(), 1.
+                );
+            }
     };
 }

@@ -7,6 +7,7 @@
 
 #include <tf/tf.h>
 #include <ros/time.h>
+#include <Eigen/Eigen>
 #include <tf/transform_broadcaster.h>
 
 #include "nav_msgs/Path.h"
@@ -26,16 +27,11 @@ namespace simulator
             return 2 * std::floor(0.5 - rad / (2 * PI)) * PI + rad;
         return rad;
     }
-
-    struct R3xSO2
-    {
-        double x, y, z, yaw;
-    };
     
     class Robot
     {
         public:
-            R3xSO2 pose, vel;
+            Eigen::Vector4d pose, vel;
             double length, width, height;
         
         private:
@@ -48,18 +44,15 @@ namespace simulator
         public:
             Robot()
             {
-                vel.x = vel.y = vel.z = vel.yaw = 0;
-                pose.x = pose.y = pose.z = pose.yaw = 0;
+                vel.setZero();
+                pose.setZero();
             }
 
-            Robot(R3xSO2 position, double l, double w, double h)
+            Robot(const Eigen::Vector4d& position, double l, double w, double h)
             : length(l), width(w), height(h)
             {
-                pose.x = position.x;
-                pose.y = position.y;
-                pose.z = position.z;
-                pose.yaw = position.yaw;
-                vel.x = vel.y = vel.z = vel.yaw = 0;
+                vel.setZero();
+                pose = position;
             }
 
         private:
@@ -70,30 +63,25 @@ namespace simulator
             void move(double dt)
             {
                 wait4lock();
-                pose.x += vel.x * dt;
-                pose.y += vel.y * dt;
-                pose.z += vel.z * dt;
-                pose.yaw = clip(pose.yaw + vel.yaw * dt);
+                pose += vel * dt;
+                pose.w() = clip(pose.w());
                 unlock();
             }
 
-            void control(R3xSO2 velocity)
+            void control(const Eigen::Vector4d& velocity)
             {
                 wait4lock();
-                vel.x = velocity.x;
-                vel.y = velocity.y;
-                vel.z = velocity.z;
-                vel.yaw = velocity.yaw;
+                vel = velocity;
                 unlock();
             }
 
             void control(quadrotor_msgs::PositionCommand::ConstPtr cmd)
             {
                 wait4lock();
-                vel.yaw = cmd->yaw_dot;
-                vel.x = cmd->velocity.x;
-                vel.y = cmd->velocity.y;
-                vel.z = cmd->velocity.z;
+                vel << cmd->velocity.x, 
+                       cmd->velocity.y, 
+                       cmd->velocity.z, 
+                       cmd->yaw_dot;
                 unlock();
             }
 
@@ -114,11 +102,11 @@ namespace simulator
             geometry_msgs::PoseStamped msg(std::string& frame)
             {
                 geometry_msgs::PoseStamped ps;
-                ps.pose.position.x = pose.x;
-                ps.pose.position.y = pose.y;
-                ps.pose.position.z = pose.z;
+                ps.pose.position.x = pose.x();
+                ps.pose.position.y = pose.y();
+                ps.pose.position.z = pose.z();
+                ps.pose.orientation = tf::createQuaternionMsgFromYaw(pose.w());
                 ps.header.frame_id = frame;
-                ps.pose.orientation = tf::createQuaternionMsgFromYaw(pose.yaw);
                 return ps;
             }
             
@@ -127,15 +115,15 @@ namespace simulator
                 nav_msgs::Odometry odom;
                 odom.child_frame_id = child;
                 odom.header.frame_id = frame;
-                odom.twist.twist.linear.x = vel.x;
-                odom.twist.twist.linear.y = vel.y;
-                odom.twist.twist.linear.z = vel.z;
-                odom.pose.pose.position.x = pose.x;
-                odom.pose.pose.position.y = pose.y;
-                odom.pose.pose.position.z = pose.z;
-                odom.twist.twist.angular.z = vel.yaw;
+                odom.twist.twist.linear.x = vel.x();
+                odom.twist.twist.linear.y = vel.y();
+                odom.twist.twist.linear.z = vel.z();
+                odom.pose.pose.position.x = pose.x();
+                odom.pose.pose.position.y = pose.y();
+                odom.pose.pose.position.z = pose.z();
+                odom.twist.twist.angular.z = vel.w();
                 odom.pose.pose.orientation = tf::createQuaternionMsgFromYaw(
-                    pose.yaw
+                    pose.w()
                 );
                 return odom;
             }

@@ -29,34 +29,25 @@ namespace simulator
                         double tracker_l,
                         double tracker_h): map(ptr)
             {
-                R3xSO2 target_pose = {
-                    target_x,
-                    target_y,
-                    target_z,
-                    target_yaw
-                };
-                R3xSO2 tracker_pose = {
-                    tracker_x,
-                    tracker_y,
-                    tracker_z,
-                    tracker_yaw
-                };
-
-                tracker = Robot(tracker_pose, tracker_l, tracker_w, tracker_h);
-                target = Robot(target_pose, target_l, target_w, target_h);
+                target = Robot({
+                    target_x, target_y, target_z, target_yaw
+                }, target_l, target_w, target_h);
+                tracker = Robot({
+                    tracker_x, tracker_y, tracker_z, tracker_yaw
+                }, tracker_l, tracker_w, tracker_h);
             }
         
         private:
             void crop(Robot& robot)
             {
-                robot.pose.x = std::max(
-                    std::min(robot.pose.x, map->size0[X]), 0.
+                robot.pose.x() = std::max(
+                    std::min(robot.pose.x(), map->size0.x()), 0.
                 );
-                robot.pose.y = std::max(
-                    std::min(robot.pose.y, map->size0[Y]), 0.
+                robot.pose.y() = std::max(
+                    std::min(robot.pose.y(), map->size0.y()), 0.
                 );
-                robot.pose.z = std::max(
-                    std::min(robot.pose.z, map->size0[Z]), 0.
+                robot.pose.z() = std::max(
+                    std::min(robot.pose.z(), map->size0.z()), 0.
                 );
             }
 
@@ -72,20 +63,18 @@ namespace simulator
             double angle()
             {
                 return std::fabs(clip(std::atan2(
-                    target.pose.y - tracker.pose.y,
-                    target.pose.x - tracker.pose.x
-                ) - tracker.pose.yaw));
+                    target.pose.y() - tracker.pose.y(),
+                    target.pose.x() - tracker.pose.x()
+                ) - tracker.pose.w()));
             }
 
-            void project(double* xp, double* yp)
+            Eigen::Vector2d project()
             {
-                *xp = target.pose.x - tracker.pose.x;
-                *yp = target.pose.y - tracker.pose.y;
-                double sin = std::sin(tracker.pose.yaw);
-                double cos = std::cos(tracker.pose.yaw);
-                double x = cos ** xp + sin ** yp;
-                double y = cos ** yp - sin ** xp;
-                *xp = x; *yp = y;
+                double sin = std::sin(tracker.pose.w());
+                double cos = std::cos(tracker.pose.w());
+                double x = target.pose.x() - tracker.pose.x();
+                double y = target.pose.y() - tracker.pose.y();
+                return {cos * x + sin * y, cos * y - sin * x};
             }
             
             bool occlusion()
@@ -96,13 +85,13 @@ namespace simulator
                 {
                     p = 1 - k;
                     x = std::round(
-                        r * (k * tracker.pose.x + p * target.pose.x)
+                        r * (k * tracker.pose.x() + p * target.pose.x())
                     );
                     y = std::round(
-                        r * (k * tracker.pose.y + p * target.pose.y)
+                        r * (k * tracker.pose.y() + p * target.pose.y())
                     );
                     z = std::round(
-                        r * (k * tracker.pose.z + p * target.pose.z)
+                        r * (k * tracker.pose.z() + p * target.pose.z())
                     );
                     if(map->map[x][y][z]) return true;
                 }
@@ -111,11 +100,7 @@ namespace simulator
 
             double distance()
             {
-                return std::sqrt(
-                    + std::pow(target.pose.x - tracker.pose.x, 2)
-                    + std::pow(target.pose.y - tracker.pose.y, 2)
-                    + std::pow(target.pose.z - tracker.pose.z, 2)
-                );
+                return (target.pose.head(3) - tracker.pose.head(3)).norm();
             }
     };
 }

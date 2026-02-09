@@ -8,63 +8,46 @@
 
 #include "geometry_msgs/PoseStamped.h"
 
-#include "lbfgs"
 #include "simulator/planner.hpp"
 
 namespace simulator
 {
-    Planner::Planner(Map* world, Robot* robot,
-                     double dt, double vel, double acc)
-    : map(world), car(robot), time(dt), ds(0.5 * std::sqrt(
-        std::pow(robot->length, 2) + std::pow(robot->width, 2)
-    )), vm(vel), am(acc) {}
-
-    R3xSO2 Planner::control(std::vector<std::pair<double, double>>& path)
+    Planner::~Planner()
     {
-        /* Initialize */
-        R3xSO2 ctrl = {0.0, 0.0, 0.0, 0.0};
-        const int n = path.size() - 1;
-        if(n <= 1) return ctrl;
-
-        /* Get next waypoint */
-        R3xSO2 point;
-        point.y = path[n].second + 4 * path[n - 1].second + path[n - 2].second;
-        point.x = path[n].first + 4 * path[n - 1].first + path[n - 2].first;
-        point.x /= 6.; point.y /= 6.; path.pop_back();
-        point.yaw = std::atan2(point.y - car->pose.y, point.x - car->pose.x);
-
-        /* Calculate velocity */
-        ctrl.yaw = clip(point.yaw - car->pose.yaw);
-        ctrl.x = (point.x - car->pose.x) / time;
-        ctrl.y = (point.y - car->pose.y) / time;
-        if(ctrl.yaw < -PI / 2) ctrl.yaw += PI;
-        if(ctrl.yaw > PI / 2) ctrl.yaw -= PI;
-        ctrl.yaw /= time;
-        return ctrl;
+        delete[] g;
+        delete[] parent;
+        delete[] visited;
     }
 
-    std::vector<std::pair<double, double>> Planner::plan(double xg, double yg)
+    Planner::Planner(Map* world, Robot* robot,
+                     double dt, double vel, double acc,
+                     double lmd, int pst, int m, int itr,
+                     double e, double step, double del,
+                     double ep, double wol, double arm):
+        map(world), car(robot), time(dt), ds(0.5 * std::sqrt(
+            std::pow(robot->length, 2) + std::pow(robot->width, 2)
+        )), vm(vel), am(acc), lambda(lmd), past(pst), mem(m), iterations(itr),
+        eps(e), steps(step), delta(del), epsilon(ep), wolfe(wol), armijo(arm)
     {
-        const double r = 1. / map->resolution;
-        std::vector<std::pair<double, double>> path = astar(
-            std::round(r * car->pose.x),
-            std::round(r * car->pose.y),
-            std::round(r * xg), std::round(r * yg)
-        );
-        int n = path.size() - 1;
-        if(n <= 1) return path;
-        int step = std::round(vm * time * r);
-        std::vector<std::pair<double, double>> keypoints;
-        for(int p = 0; p < n; p += step)
-            keypoints.push_back(path[p]);
-        keypoints.push_back(path[n]);
-        if((keypoints = bspline(keypoints)).size() > 6)
-            optimize(keypoints);
-        return keypoints;
+        /* For A-Star */
+        int size = world->size.x() * world->size.y();
+        visited = new bool[size];
+        parent = new int[size];
+        g = new double[size];
+
+        /* For B-Spline */
+        cp << 1, 4, 1; cp /= 6;
+        cv << -1, 0, 1; cv /= 2 * dt;
+        ca << 1, -2, 1; ca /= dt * dt;
+
+        /* For L-BFGS */
+        pf = Eigen::VectorXd::Zero(pst);
+        limit = Eigen::VectorXd::Zero(m);
+        memory = Eigen::VectorXd::Zero(m);
     }
 
     nav_msgs::Path Planner::msg(std::string& frame,
-                                std::vector<std::pair<double, double>>& ctrl)
+                                std::vector<Eigen::Vector2d>& ctrl)
     {
         /* Initialize message */
         nav_msgs::Path message;
@@ -78,87 +61,135 @@ namespace simulator
             geometry_msgs::PoseStamped pose;
             pose.header.frame_id = message.header.frame_id;
             pose.pose.position.x = (
-                ctrl[p].first + 4 * ctrl[p + 1].first + ctrl[p + 2].first
+                ctrl[p].x() + 4 * ctrl[p + 1].x() + ctrl[p + 2].x()
             ) / 6.;
             pose.pose.position.y = (
-                ctrl[p].second + 4 * ctrl[p + 1].second + ctrl[p + 2].second
+                ctrl[p].y() + 4 * ctrl[p + 1].y() + ctrl[p + 2].y()
             ) / 6.;
             message.poses.push_back(pose);
         }
         return message;
     }
 
+    std::vector<Eigen::Vector2d> Planner::plan(double xg, double yg)
+    {
+        /* A-Star search */
+        const double r = 1. / map->resolution;
+        std::vector<Eigen::Vector2d> points = astar(
+            std::round(r * car->pose.x()),
+            std::round(r * car->pose.y()),
+            std::round(r * xg), std::round(r * yg)
+        );
+        int n = points.size() - 1;
+        if(n <= 1)
+            return points;
+        
+        /* Sampling */
+        int step = std::round(vm * time * r);
+        std::vector<Eigen::Vector2d> path;
+        for(int p = 0; p < n; p += step)
+            path.push_back(points[p]);
+        path.push_back(points[n]);
+
+        /* B-Spline optimization */
+        Eigen::Matrix2Xd bsp = bspline(path);
+        if(bsp.cols() > 6)
+            optimize(bsp);
+        path.resize(bsp.cols());
+        Eigen::Map<Eigen::Matrix2Xd>(path.front().data(), 2, bsp.cols()) = bsp;
+        return path;
+    }
+
+    Eigen::Vector4d Planner::control(std::vector<Eigen::Vector2d>& path)
+    {
+        /* Initialize */
+        Eigen::Vector4d ctrl = Eigen::Vector4d::Zero();
+        const int n = path.size() - 1;
+        if(n <= 1) return ctrl;
+
+        /* Get next waypoint */
+        Eigen::Vector3d point;
+        point.x() = (path[n].x() + 4 * path[n - 1].x() + path[n - 2].x()) / 6.;
+        point.y() = (path[n].y() + 4 * path[n - 1].y() + path[n - 2].y()) / 6.;
+        point.z() = std::atan2(
+            point.y() - car->pose.y(), point.x() - car->pose.x()
+        );
+        path.pop_back();
+
+        /* Calculate velocity */
+        ctrl.head(2) = (point.head(2) - car->pose.head(2)) / time;
+        ctrl.w() = clip(point.z() - car->pose.w());
+        if(ctrl.w() < -PI / 2) ctrl.w() += PI;
+        if(ctrl.w() > PI / 2) ctrl.w() -= PI;
+        ctrl.w() /= time;
+        return ctrl;
+    }
+
     void Planner::bfs(int* xs, int* ys)
     {
         /* Variables */
         int x0 = *xs, y0 = *ys;
-        std::pair<int, int> xy;
+        int index = encode(x0, y0);
 
-        /* Constants */
-        const int H = map->size[X], W = map->size[Y];
-
-        /* Initialize queue and arrays */
-        std::queue<std::pair<int, int>> queue;
-        std::vector<std::vector<bool>> visited(
-            H, std::vector<bool>(W, false)
+        /* Initialize arrays */
+        std::fill_n(
+            g, map->size.x() * map->size.y(), map->size.x() * map->size.y() * 2
         );
-        std::vector<std::vector<int>> dist(
-            H, std::vector<int>(W, H * W * 2)
-        );
+        std::fill_n(visited, map->size.x() * map->size.y(), false);
+        visited[index] = true;
+        g[index] = 0;
 
         /* Push the first point into the queue */
-        queue.push(std::make_pair(x0, y0));
-        visited[y0][x0] = true; dist[y0][x0] = 0;
+        std::queue<int> queue;
+        queue.push(index);
 
         /* Main loop */
         while(!queue.empty())
         {
             /* Dequeue a point */
-            xy = queue.front(); queue.pop();
-            x0 = xy.first; y0 = xy.second;
+            index = queue.front(); queue.pop();
 
             /* If the target is found */
-            if(dist[y0][x0] > 1)
+            if(g[index] > 1)
             {
-                *xs = x0; *ys = y0; return;
+                decode(index, xs, ys);
+                return;
             }
             
             /* Expand the point */
+            decode(index, &x0, &y0);
             for(int dx = -1; dx <= 1; dx++)
             {
                 int x = x0 + dx;
-                if(x < 0 || x >= W) continue;
-                for(int dy = -1; dy <= 1; dy++)
-                {
-                    int y = y0 + dy;
-                    if(y < 0 || y >= H) continue;
-                    if(!visited[y][x])
+                if(x >= 0 && x < map->size.x())
+                    for(int dy = -1; dy <= 1; dy++)
                     {
-                        visited[y][x] = true;
-                        queue.push(std::make_pair(x, y));
-                        dist[y][x] = map->exp[x][y][0]? 0: dist[y0][x0] + 1;
+                        int y = y0 + dy;
+                        if(y >= 0 && y < map->size.y())
+                        {
+                            int idx = encode(x, y);
+                            if(!visited[idx])
+                            {
+                                queue.push(idx);
+                                visited[idx] = true;
+                                g[idx] = map->exp[x][y][0]? 0: g[idx] + 1;
+                            }
+                        }   
                     }   
-                }   
             }   
         }
     }
 
-    std::vector<std::pair<double, double>> Planner::astar(int xs, int ys, 
-                                                          int xg, int yg)
+    std::vector<Eigen::Vector2d> Planner::astar(int xs, int ys, int xg, int yg)
     {
-        /* Constants */
-        const int X = map->size[simulator::X];
-        const int Y = map->size[simulator::Y];
-        const double INF = std::numeric_limits<double>::infinity();
-
         /* Boundaries */
-        xs = std::max(std::min(xs, X - 1), 0);
-        ys = std::max(std::min(ys, Y - 1), 0);
-        xg = std::max(std::min(xg, X - 1), 0);
-        yg = std::max(std::min(yg, Y - 1), 0);
+        xs = std::max(std::min(xs, map->size.x() - 1), 0);
+        ys = std::max(std::min(ys, map->size.y() - 1), 0);
+        xg = std::max(std::min(xg, map->size.x() - 1), 0);
+        yg = std::max(std::min(yg, map->size.y() - 1), 0);
 
         /* Result */
-        std::vector<std::pair<double, double>> path;
+        std::vector<Eigen::Vector2d> path;
 
         /* Obstacle check */
         if(map->exp[xg][yg][0])
@@ -166,24 +197,23 @@ namespace simulator
         if(map->exp[xs][ys][0])
             bfs(&xs, &ys);
 
-        /* Initialize arrays and queue */
-        std::vector<double> g(X * Y, INF);
-        std::vector<int> parent(X * Y, -1);
-        std::vector<bool> visited(X * Y, false);
-        std::priority_queue<std::pair<double, int>> queue;
-
-        /* Variables */
-        int x, y, x0, y0, idx, index = encode(xs, ys, X);
+        /* Initialize arrays */
+        int index = map->size.x() * map->size.y();
+        std::fill_n(g, index, std::numeric_limits<double>::infinity());
+        std::fill_n(visited, index, false);
+        std::fill_n(parent, index, -1);
+        g[index = encode(xs, ys)] = 0;
 
         /* Push the first point into the queue */
-        queue.push(std::make_pair(-f(g[index] = 0, xs, ys, xg, yg), index));
+        std::priority_queue<std::pair<double, int>> queue;
+        queue.push(std::make_pair(-f(g[index], xs, ys, xg, yg), index));
 
         /* Main loop */
         while(!queue.empty())
         {
             /* Dequeue a point */
             index = queue.top().second;
-            decode(index, &x0, &y0, X);
+            decode(index, &xs, &ys);
             queue.pop();
 
             /* Check visited */
@@ -192,20 +222,16 @@ namespace simulator
             visited[index] = true; 
 
             /* If found a path */
-            if(x0 == xg && y0 == yg)
+            if(xs == xg && ys == yg)
             {
-                path.push_back(std::make_pair(
-                    x0 * map->resolution, 
-                    y0 * map->resolution
-                ));
-                while((index = parent[index]) != -1)
+                do
                 {
-                    decode(index, &x0, &y0, X);
-                    path.push_back(std::make_pair(
-                        x0 * map->resolution, 
-                        y0 * map->resolution
-                    ));
+                    decode(index, &xs, &ys);
+                    path.emplace_back(
+                        xs * map->resolution, ys * map->resolution
+                    );
                 }
+                while((index = parent[index]) != -1);
                 std::reverse(path.begin(), path.end());
                 break;
             }
@@ -213,24 +239,24 @@ namespace simulator
             /* Expand the point */
             for(int neighbor = 0; neighbor < 9; neighbor++)
             {
-                x = x0 + neighbor % 3 - 1;
-                y = y0 + neighbor / 3 - 1;
-                idx = encode(x, y, X);
+                int x = xs + neighbor % 3 - 1;
+                int y = ys + neighbor / 3 - 1;
+                int idx = encode(x, y);
                 
                 /* Determine the legitimacy of the extension point */
-                if(x < 0 || x >= X || y < 0 || y >= Y || 
+                if(x < 0 || x >= map->size.x() || y < 0 || y >= map->size.y() || 
                    map->exp[x][y][0] || visited[idx])
                     continue;
                 
                 /* Calculate cost value */
-                double cost = f(g[index], x, y, x0, y0);
+                double g0 = f(g[index], x, y, xs, ys);
 
                 /* Update the point */
-                if(cost < g[idx])
+                if(g0 < g[idx])
                 {
-                    g[idx] = cost;
+                    g[idx] = g0;
                     parent[idx] = index;
-                    queue.push(std::make_pair(-f(cost, x, y, xg, yg), idx));
+                    queue.push(std::make_pair(-f(g0, x, y, xg, yg), idx));
                 }
             }
         }
@@ -238,161 +264,234 @@ namespace simulator
         return path;
     }
 
-    std::vector<std::pair<double, double>> Planner::bspline(
-        const std::vector<std::pair<double, double>>& path
-    ){
-        const int N = path.size();
-        Eigen::Vector3d p(3), v(3), a(3);
-        Eigen::VectorXd x(N + 4), y(N + 4);
-        p << 1, 4, 1; v << -1, 0, 1; a << 1, -2, 1;
-        std::vector<std::pair<double, double>> control(N + 2);
-        Eigen::MatrixXd m = Eigen::MatrixXd::Zero(N + 4, N + 2);
-        for(int i = 0; i < N; i++)
-        {
-            x[i] = path[i].first; y[i] = path[i].second;
-            m.block(i, i, 1, 3) = (1.0 / 6) * p.transpose();
-        }
-        x.tail(4).setZero(); y.tail(4).setZero();
-        m.block(N, 0, 1, 3) = (0.5 / time) * v.transpose();
-        m.block(N + 1, N - 1, 1, 3) = (0.5 / time) * v.transpose();
-        m.block(N + 2, 0, 1, 3) = (1. / (time * time)) * a.transpose();
-        m.block(N + 3, N - 1, 1, 3) = (1. / (time * time)) * a.transpose();
-        Eigen::ColPivHouseholderQR<Eigen::MatrixXd> c = m.colPivHouseholderQr();
-        Eigen::VectorXd cx = c.solve(x), cy = c.solve(y);
-        for(int i = 0; i < N + 2; i++)
-            control[i] = std::make_pair(cx[i], cy[i]);
-        return control;
+    Eigen::Matrix2Xd Planner::bspline(const std::vector<Eigen::Vector2d>& path)
+    {
+        const int n = path.size();
+        Eigen::MatrixX2d points(n + 4, 2);
+        points.topRows(n) = Eigen::Map<
+            const Eigen::Matrix<double, Eigen::Dynamic, 2, Eigen::RowMajor>
+        >(reinterpret_cast<const double*>(path.data()), n, 2);
+        points.bottomRows(4).setZero();
+        
+        Eigen::MatrixXd matrix = Eigen::MatrixXd::Zero(n + 4, n + 2);
+        for(int i = 0; i < 3; i++)
+            matrix.diagonal(i).head(n).setConstant(cp[i]);
+        matrix.block(n, 0, 1, 3) = cv.transpose();
+        matrix.block(n + 2, 0, 1, 3) = ca.transpose();
+        matrix.block(n + 1, n - 1, 1, 3) = cv.transpose();
+        matrix.block(n + 3, n - 1, 1, 3) = ca.transpose();
+        return matrix.colPivHouseholderQr().solve(points).transpose();
     }
 
-    double Planner::optimize(std::vector<std::pair<double, double>>& ctrl)
+    double Planner::optimize(Eigen::Matrix2Xd& ctrl)
     {
-        /* Initialize variables */
-        double cost;
+        /* Prepare intermediate variables */
         const int n = ctrl.size();
-        lbfgs::lbfgs_parameter_t param;
-        Eigen::VectorXd var(n << 1);
-        for(int i = 0; i < n; i++)
+        Eigen::VectorXd grad(n), x0(n), g0(n);
+        Eigen::VectorXd x = Eigen::Map<Eigen::VectorXd>(ctrl.data(), n);
+
+        /* Initialize the limited memory */
+        limit.setZero(); memory.setZero();
+        Eigen::MatrixXd s = Eigen::MatrixXd::Zero(n, mem);
+        Eigen::MatrixXd y = Eigen::MatrixXd::Zero(n, mem);
+
+        /* Evaluate the function value and its gradient */
+        double fx = pf[0] = cost(x, grad); 
+        Eigen::VectorXd d = -grad;
+
+        if(!convergance(x, grad))
         {
-            var[i * 2] = ctrl[i].first;
-            var[i * 2 + 1] = ctrl[i].second;
+            int iter = 1, end = 0, bound = 0;
+            double step = 1. / d.norm();
+            while(true)
+            {
+                /* Store the current position and gradient vectors */
+                x0 = x; g0 = grad;
+
+                /* Lewis-Overton line search */
+                if(step >= steps) step = steps * 0.5;
+                if(!search(grad, &step, x, &fx, d, x0, g0))
+                {
+                    x = x0; grad = g0; break;
+                }
+
+                /* Convergance test */
+                if(convergance(x, grad))
+                    break;
+
+                /* Test for stopping criterion */
+                if(iter >= past && 
+                   std::fabs(pf[iter % past] - fx) / 
+                   std::max(std::fabs(fx), 1.) < delta) break;
+                pf[iter++ % past] = fx;
+
+                /* L-BFGS update */
+                d = -grad;
+                s.col(end) = x - x0;
+                y.col(end) = grad - g0;
+
+                /* Cautious update */
+                double yty = y.col(end).squaredNorm();
+                double yts = memory[end] = y.col(end).dot(s.col(end));
+                if(yts > eps * s.col(end).squaredNorm() * g0.norm())
+                {
+                    int _;
+                    int j = end = (end + 1) % mem;
+                    bound = std::min(mem, bound + 1);
+                    for(_ = bound; _; --_)
+                    {
+                        j = (j + mem - 1) % mem;
+                        limit[j] = s.col(j).dot(d) / memory[j];
+                        d -= limit[j] * y.col(j);
+                    }
+                    d *= yts / yty;
+                    for(_ = bound; _; --_)
+                    {
+                        d += (limit[j] - y.col(j).dot(d) / memory[j]) * s.col(j)
+                        ;j = (j + 1) % mem;
+                    }
+                }
+                step = 1;
+            }
         }
-        param.g_epsilon = 0.0;
+        ctrl = Eigen::Map<Eigen::Matrix2Xd>(x.data(), 2, n >> 1);
+        return fx;
+    }
 
-        /* Optimize */
-        lbfgs::lbfgs_optimize(var, cost, [](
-            void* self,
-            const Eigen::VectorXd& var,  
-            Eigen::VectorXd& gradient
-        )->double{
-            /* Initialize */
-            gradient.setZero();
-            double g, cost = 0;
-            const double lambda = 10;
-            const int n = var.size() >> 1;
-            Planner* planner = reinterpret_cast<Planner*>(self);
-            double t2 = 1. / (planner->time * planner->time);
-            double t4 = t2 * t2;
+    double Planner::cost(const Eigen::VectorXd& var, Eigen::VectorXd& grad)
+    {
+        /* Initialize */
+        grad.setZero();
+        Eigen::Vector2d temp;
+        int n = var.size() >> 1;
+        Eigen::Map<const Eigen::Matrix2Xd> ctrl(var.data(), 2, n);
+        Eigen::Map<Eigen::Matrix2Xd> gradient(grad.data(), 2, n);
 
-            /* Calculate velocity */
-            int m = (n - 1) << 1;
-            std::vector<double> vel(m);
-            for(int t = 0; t < m; t++)
-                vel[t] = var[t + 2] - var[t];
+        /* Calculate velocity and acceleration */
+        --n; Eigen::Matrix2Xd vel = ctrl.rightCols(n) - ctrl.leftCols(n);
+        --n; Eigen::Matrix2Xd acc = vel.rightCols(n) - vel.leftCols(n);
+        
+        /* Calculate smoothness cost */
+        double value = acc.squaredNorm();
+        gradient.leftCols(n) += 2 * acc;
+        gradient.rightCols(n) += 2 * acc;
+        gradient.middleCols(1, n) -= 4 * acc;
+
+        /* Calculate acceleration cost */
+        double t2 = 1 / (time * time);
+        double t4 = t2 * t2;
+        for(int t = 0; t < n; t++)
+            if((*g = acc.col(t).squaredNorm() * t4 - am * am) > 0)
+            {
+                value += *g;
+                temp = acc.col(t) * t4;
+                gradient.col(t) += temp;
+                gradient.col(t + 2) += temp;
+                gradient.col(t + 1) -= 2 * temp;
+            }
+
+        /* Calculate velocity cost */
+        ++n;
+        for(int t = 0; t < n; t++)
+        {
+            if((*g = vel.col(t).squaredNorm() * ca[0] - vm * vm) > 0)
+            {
+                value += *g;
+                temp = vel.col(t) * t2;
+                gradient.col(t) -= temp;
+                gradient.col(t + 1) += temp;
+            }
+        }
+
+        /* Calculate safety cost */
+        n -= 2;
+        for(int t = 3; t < n; t++)
+        {
+            temp = ctrl.col(t) / map->resolution;
+            double x = std::max(std::min(temp.x(), map->size.x() - 2.), 0.);
+            double y = std::max(std::min(temp.y(), map->size.y() - 2.), 0.);
+
+            /* Linear interpolation */
+            int x1 = x, y1 = y;
+            int x2 = x1 + 1, y2 = y1 + 1;
+            double u = x - x1, v = y - y1;
+            double u_ = 1. - u, v_ = 1. - v;
+            *g = u * v * map->sdf[x2][y2]
+               + u * v_ * map->sdf[x2][y1]
+               + u_ * v * map->sdf[x1][y2]
+               + u_ * v_ * map->sdf[x1][y1];
+
+            /* Calculate gradient */
+            if((*g = ds - *g) > 0)
+            {
+                value += lambda ** g ** g;
+                grad[t * 2] += 2 * lambda ** g * (
+                    + v * map->sdf[x1][y2] + v_ * map->sdf[x1][y1]
+                    - v * map->sdf[x2][y2] - v_ * map->sdf[x2][y1]
+                );
+                grad[t * 2 + 1] += 2 * lambda ** g * (
+                    + u * map->sdf[x2][y1] + u_ * map->sdf[x1][y1]
+                    - u * map->sdf[x2][y2] - u_ * map->sdf[x1][y2]
+                );
+            }
+        }
+
+        grad.head(6).setZero();
+        grad.tail(6).setZero();
+        return value;
+    }
+
+    bool Planner::search(Eigen::VectorXd& gradient, double* step,
+                         Eigen::VectorXd& x, double* value,
+                         const Eigen::VectorXd& direction,
+                         const Eigen::VectorXd& x0,
+                         const Eigen::VectorXd& g0)
+    {
+        int iter = 0;
+        bool ac = false, touched = false;
+        double min = 0, max = steps, fx = *value;
+
+        /* Compute the initial gradient in the search direction */
+        double grad = g0.dot(direction);
+        if(grad > 0) return false;
+        const double w = wolfe * grad;
+        const double a = armijo * grad;
+
+        /* Line search */
+        while(true)
+        {
+            /* Evaluate the function and gradient values */
+            *value = cost(x = x0 + *step * direction, gradient);
+            if(std::isinf(*value) || std::isnan(*value))
+                return false;
             
-            /* Calculate acceleration */
-            m -= 2;
-            std::vector<double> acc(m);
-            for(int t = 0; t < m; t++)
-                acc[t] = vel[t + 2] - vel[t];
+            /* Check the Armijo condition */
+            if(*step * a < *value - fx)
+            {
+                max = *step; ac = true;
+            }
+            /* Check the waek Wolfe condition */
+            else if(w > gradient.dot(direction))
+                min = *step;
+            else
+                return true;
             
-            /* Calculate smoothness cost */
-            for(int t = 0; t < m; t++)
+            /* Maximum number of iteration */
+            if(++iter >= iterations) return false;
+
+            /* Relative interval width is at least machine precision */
+            if(ac && (max - min) < max * 1e-16) return false;
+
+            /* Update step */
+            if(ac) *step = (min + max) / 2; else *step *= 2;
+            if(*step < 1. / steps) return false;
+            if(*step > steps)
             {
-                g = 2 * acc[t];
-                cost += acc[t] * acc[t];
-                gradient[t + 2] -= 2 * g;
-                gradient[t + 4] += g;
-                gradient[t] += g;
+                if(touched) 
+                    return false;
+                touched = true;
+                *step = steps;
             }
-
-            /* Calculate acceleration cost */
-            for(int t = 0; t < m; t += 2)
-            {
-                g = (std::pow(acc[t], 2) + std::pow(acc[t + 1], 2)) * t4;
-                if((g -= planner->am * planner->am) > 0)
-                {
-                    cost += g;
-                    for(int dim = 0; dim < 2; dim++)
-                    {
-                        g = acc[t + dim] * t4;
-                        gradient[t + dim] += g;
-                        gradient[t + dim + 4] += g;
-                        gradient[t + dim + 2] -= 2 * g;
-                    }
-                }
-            }
-
-            /* Calculate velocity cost */
-            m += 2;
-            for(int t = 0; t < m; t += 2)
-            {
-                g = (std::pow(vel[t], 2) + std::pow(vel[t + 1], 2)) * t2;
-                if((g -= planner->vm * planner->vm) > 0)
-                {
-                    cost += g;
-                    for(int dim = 0; dim < 2; dim++)
-                    {
-                        g = vel[t + dim] * t2;
-                        gradient[t + dim] -= g;
-                        gradient[t + dim + 2] += g;
-                    }
-                }
-            }
-
-            /* Calculate safety cost */
-            m -= 4;
-            double** sdf = planner->map->sdf;
-            for(int t = 6; t < m; t += 2)
-            {
-                double x = var[t] / planner->map->resolution;
-                double y = var[t + 1] / planner->map->resolution;
-                x = std::max(std::min(x, planner->map->size[X] - 2.), 0.);
-                y = std::max(std::min(y, planner->map->size[Y] - 2.), 0.);
-
-                /* Linear interpolation */
-                int x1 = x, y1 = y;
-                int x2 = x1 + 1, y2 = y1 + 1;
-                double u = x - x1, v = y - y1;
-                double u_ = 1. - u, v_ = 1. - v;
-                g = u * v * sdf[x2][y2]
-                  + u * v_ * sdf[x2][y1]
-                  + u_ * v * sdf[x1][y2]
-                  + u_ * v_ * sdf[x1][y1];
-
-                /* Calculate gradient */
-                if((g = planner->ds - g) > 0)
-                {
-                    cost += lambda * g * g;
-                    gradient[t] += 2 * lambda * g * (
-                        + v * sdf[x1][y2] + v_ * sdf[x1][y1]
-                        - v * sdf[x2][y2] - v_ * sdf[x2][y1]
-                    );
-                    gradient[t + 1] += 2 * lambda * g * (
-                        + u * sdf[x2][y1] + u_ * sdf[x1][y1]
-                        - u * sdf[x2][y2] - u_ * sdf[x1][y2]
-                    );
-                }
-            }
-
-            gradient.head(6).setZero();
-            gradient.tail(6).setZero();
-            return cost;
-
-        }, nullptr, nullptr, this, param);
-
-        /* Get the optimal control points */
-        for(int i = 0; i < n; i++)
-            ctrl[i] = std::make_pair(var[i * 2], var[i * 2 + 1]);
-        return cost;
+        }
     }
 }

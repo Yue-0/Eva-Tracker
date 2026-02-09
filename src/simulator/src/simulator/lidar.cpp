@@ -14,9 +14,9 @@ namespace simulator
     {
         /* Map -> Point cloud */
         pcl::PointCloud<pcl::PointXYZ> cloud;
-        for(int x = 0; x < map.size[X]; x++)
-            for(int y = 0; y < map.size[Y]; y++)
-                for(int z = 0; z < map.size[Z]; z++)
+        for(int x = 0; x < map.size.x(); x++)
+            for(int y = 0; y < map.size.y(); y++)
+                for(int z = 0; z < map.size.z(); z++)
                     if(map.map[x][y][z])
                         cloud.push_back(pcl::PointXYZ(
                             x * map.resolution,
@@ -66,11 +66,11 @@ namespace simulator
         return n.createTimer(ros::Duration(time), [&](const ros::TimerEvent&){
             /* Position */
             sensor_msgs::LaserScan cloud;
-            double yaw = robot.pose.yaw;
+            double yaw = robot.pose.w();
             double r = 1 / map.resolution;
-            int x0 = std::round(robot.pose.x * r);
-            int y0 = std::round(robot.pose.y * r);
-            int z0 = std::round(robot.pose.z * r);
+            int x0 = std::round(robot.pose.x() * r);
+            int y0 = std::round(robot.pose.y() * r);
+            int z0 = std::round(robot.pose.z() * r);
 
             /* Initialize */
             cloud.range_min = 0;
@@ -78,7 +78,7 @@ namespace simulator
             cloud.angle_min = angle - PI;
             cloud.angle_increment = angle;
             cloud.header.frame_id = frame;
-            cloud.range_max = 2 * std::max(map.size0[X], map.size0[Y]);
+            cloud.range_max = 2 * std::max(map.size0.x(), map.size0.y());
             
             /* Laser scan */
             cloud.ranges.clear();
@@ -93,12 +93,12 @@ namespace simulator
                 {
                     int x = std::round(x0 + t * cos);
                     int y = std::round(y0 + t * sin);
-                    if(x < 0 || x >= map.size[X])
+                    if(x < 0 || x >= map.size.x())
                     {
                         cloud.ranges.push_back(INF);
                         scan = true; break;
                     }
-                    if(y < 0 || y >= map.size[Y])
+                    if(y < 0 || y >= map.size.y())
                     {
                         cloud.ranges.push_back(INF);
                         scan = true; break;
@@ -127,22 +127,22 @@ namespace simulator
         return n.createTimer(ros::Duration(time), [&](const ros::TimerEvent&){
             /* Position */
             double r = 1 / map.resolution;
-            int x0 = std::round(robot.pose.x * r);
-            int y0 = std::round(robot.pose.y * r);
-            int z0 = std::round(robot.pose.z * r);
+            int x0 = std::round(robot.pose.x() * r);
+            int y0 = std::round(robot.pose.y() * r);
+            int z0 = std::round(robot.pose.z() * r);
 
             /* Initialize */
             int dz = height * r;
             int h0 = (total * r) / 2;
             int z1 = std::max(z0 - h0, 0);
-            int z2 = std::min(z0 + h0, map.size[Z] - 1);
+            int z2 = std::min(z0 + h0, map.size.z() - 1);
             
             /* Laser scan */
             pcl::PointCloud<pcl::PointXYZ> cloud;
             for(float rad = -angles; rad < angles; rad += angle)
             {
-                double sin = std::sin(rad + robot.pose.yaw);
-                double cos = std::cos(rad + robot.pose.yaw);
+                double sin = std::sin(rad + robot.pose.w());
+                double cos = std::cos(rad + robot.pose.w());
                 for(int z = z1; z <= z2; z += dz)
                 {
                     int t = 0;
@@ -150,13 +150,13 @@ namespace simulator
                     {
                         int x = std::round(x0 + t * cos);
                         int y = std::round(y0 + t * sin);
-                        if(x < 0 || x >= map.size[X]) break;
-                        if(y < 0 || y >= map.size[Y]) break;
+                        if(x < 0 || x >= map.size.x()) break;
+                        if(y < 0 || y >= map.size.y()) break;
                         if(map.map[x][y][z])
                         {
                             cloud.push_back(pcl::PointXYZ(
-                                t * map.resolution * cos + robot.pose.x,
-                                t * map.resolution * sin + robot.pose.y,
+                                t * map.resolution * cos + robot.pose.x(),
+                                t * map.resolution * sin + robot.pose.y(),
                                 z * map.resolution
                             ));
                             break;

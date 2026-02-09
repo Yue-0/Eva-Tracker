@@ -38,8 +38,8 @@ int main(int argc, char* argv[])
 
     /* Generate random map */
     map.random(
-        env.target.pose.x, env.target.pose.y,
-        env.tracker.pose.x, env.tracker.pose.y,
+        env.target.pose.x(), env.target.pose.y(),
+        env.tracker.pose.x(), env.tracker.pose.y(),
         std::max(std::max(env.target.length, env.target.width), size),
         nh.param("map/max_obstacle_size", 1), nh.param("map/seed", 0), 
         nh.param("map/num_obstacles", 0x64)
@@ -161,9 +161,19 @@ int main(int argc, char* argv[])
     simulator::Planner planner(
         &map, &env.target, times[0],
         nh.param("target/max_vel", 1.5),
-        nh.param("target/max_acc", 1.0)
+        nh.param("target/max_acc", 1.0),
+        nh.param("planner/lambda", 1.0),
+        nh.param("planner/past", 3),
+        nh.param("planner/memory", 8),
+        nh.param("planner/iters", 100),
+        nh.param("planner/eps", 1e-6),
+        nh.param("planner/steps", 1e20),
+        nh.param("planner/delta", 1e-6),
+        nh.param("planner/epsilon", 1e-5),
+        nh.param("planner/wolfe", 9e-1),
+        nh.param("planner/armijo", 1e-4)
     );
-    std::vector<std::pair<double, double>> path;
+    std::vector<Eigen::Vector2d> path;
     ros::Publisher trajectory = nh.advertise<nav_msgs::Path>("/target/plan", 1);
     ros::Subscriber goal = nh.subscribe<geometry_msgs::PoseStamped>(
         "/move_base_simple/goal", 1, [
@@ -171,8 +181,8 @@ int main(int argc, char* argv[])
         ](const geometry_msgs::PoseStamped::ConstPtr& pose){
             if(pose->pose.position.x <= 0 ||
                pose->pose.position.y <= 0 ||
-               pose->pose.position.x > map.size0[simulator::X] ||
-               pose->pose.position.y > map.size0[simulator::Y]) {
+               pose->pose.position.x > map.size0.x() ||
+               pose->pose.position.y > map.size0.y()) {
                 ROS_WARN("Invalid goal"); return;
             }
             while(lock) 
@@ -201,10 +211,10 @@ int main(int argc, char* argv[])
     ros::Subscriber command = nh.subscribe<quadrotor_msgs::PositionCommand>(
         "/tracker/cmd", 1,
         [&env](quadrotor_msgs::PositionCommand::ConstPtr cmd){
-            env.tracker.pose.yaw = cmd->yaw;
-            env.tracker.vel.x = cmd->velocity.x;
-            env.tracker.vel.y = cmd->velocity.y;
-            env.tracker.vel.z = cmd->velocity.z;
+            env.tracker.pose.w() = cmd->yaw;
+            env.tracker.vel.x() = cmd->velocity.x;
+            env.tracker.vel.y() = cmd->velocity.y;
+            env.tracker.vel.z() = cmd->velocity.z;
         }
     );
     bool benchmarking = false;
@@ -212,10 +222,10 @@ int main(int argc, char* argv[])
         "/target/odom/replay", 1,
         [&benchmarking, &env](nav_msgs::Odometry::ConstPtr odom){
             if(!benchmarking) benchmarking = true;
-            env.target.pose.x = odom->pose.pose.position.x;
-            env.target.pose.y = odom->pose.pose.position.y;
-            env.target.pose.z = odom->pose.pose.position.z;
-            env.target.pose.yaw = tf::getYaw(odom->pose.pose.orientation);
+            env.target.pose << odom->pose.pose.position.x,
+                               odom->pose.pose.position.y,
+                               odom->pose.pose.position.z,
+                               tf::getYaw(odom->pose.pose.orientation);
         }
     );
     // ros::Subscriber replay = nh.subscribe<nav_msgs::Odometry>(
@@ -240,7 +250,7 @@ int main(int argc, char* argv[])
             double td = env.distance();
 
             /* Calculate the projected position of the target */
-            double xp, yp; env.project(&xp, &yp);
+            Eigen::Vector2d projected = env.project();
 
             /* Print metrics */
             if(td < 1)
@@ -253,8 +263,8 @@ int main(int argc, char* argv[])
                 ROS_WARN("Out of FoV!");
             else
                 ROS_INFO("Success tracking!");
-            std::cout << "TD: " << ae << "\nAE: " << td 
-                      << "\nProjected: " << xp << " " << yp << std::endl;
+            std::cout << "TD: " << ae << "\nAE: " << td << "\nProjected: " 
+                      << projected.x() << " " << projected.y() << std::endl;
         }
     );
 

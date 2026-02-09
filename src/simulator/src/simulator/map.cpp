@@ -10,9 +10,9 @@ namespace simulator
 {
     Map::~Map()
     {
-        for(int x = 0; x < size[X]; x++)
+        for(int x = 0; x < size.x(); x++)
         {
-            for(int y = 0; y < size[Y]; y++)
+            for(int y = 0; y < size.y(); y++)
             {
                 delete[] map[x][y];
                 delete[] exp[x][y];
@@ -26,30 +26,26 @@ namespace simulator
         delete[] exp;
     }
 
-    Map::Map(double x, double y, double z, double r)
+    Map::Map(double x, double y, double z, double r): resolution(r)
     {
         /* Initalize */
-        resolution = r; r = 1 / r;
-        size[X] = (size0[X] = x) * r;
-        size[Y] = (size0[Y] = y) * r;
-        size[Z] = (size0[Z] = z) * r;
-        size0[X] -= resolution;
-        size0[Y] -= resolution;
-        size0[Z] -= resolution;
+        size0 << x, y, z;
+        size = (size0 / r).cast<int>();
+        size0 -= r * Eigen::Vector3d::Ones();
 
         /* Apply for memory */
-        map = new bool**[size[X]];
-        exp = new bool**[size[X]];
-        sdf = new double*[size[X]];
-        for(int x = 0; x < size[X]; x++)
+        map = new bool**[size.x()];
+        exp = new bool**[size.x()];
+        sdf = new double*[size.x()];
+        for(int i = 0; i < size.x(); i++)
         {
-            map[x] = new bool*[size[Y]];
-            exp[x] = new bool*[size[Y]];
-            sdf[x] = new double[size[Y]];
-            for(int y = 0; y < size[Y]; y++)
+            map[i] = new bool*[size.y()];
+            exp[i] = new bool*[size.y()];
+            sdf[i] = new double[size.y()];
+            for(int j = 0; j < size.y(); j++)
             {
-                map[x][y] = new bool[size[Z]];
-                exp[x][y] = new bool[size[Z]];
+                map[i][j] = new bool[size.z()];
+                exp[i][j] = new bool[size.z()];
             }
         }
 
@@ -59,11 +55,11 @@ namespace simulator
 
     void Map::clear()
     {
-        for(int x = 0; x < size[X]; x++)
-            for(int y = 0; y < size[Y]; y++)
+        for(int x = 0; x < size.x(); x++)
+            for(int y = 0; y < size.y(); y++)
             {
                 sdf[x][y] = 0;
-                for(int z = 0; z < size[Z]; z++)
+                for(int z = 0; z < size.z(); z++)
                     map[x][y][z] = exp[x][y][z] = false;
             }
     }
@@ -74,54 +70,54 @@ namespace simulator
         const double INF = std::numeric_limits<double>::infinity();
         std::vector<double> distance, f;
         std::vector<std::vector<double>> negative(
-            size[X], std::vector<double>(size[Y], 0)
+            size.x(), std::vector<double>(size.y(), 0)
         );
-        for(int x = 0; x < size[X]; x++)
-            for(int y = 0; y < size[Y]; y++)
+        for(int x = 0; x < size.x(); x++)
+            for(int y = 0; y < size.y(); y++)
                 sdf[x][y] = 0;
         
         /* Calculate the distance in the y direction */
-        distance.resize(size[Y]);
-        for(int x = 0; x < size[X]; x++)
+        distance.resize(size.y());
+        for(int x = 0; x < size.x(); x++)
         {
-            for(int y = 0; y < size[Y]; y++)
+            for(int y = 0; y < size.y(); y++)
                 distance[y] = exp[x][y][0]? 0: INF;
-            for(int y = 1; y < size[Y]; y++)
+            for(int y = 1; y < size.y(); y++)
                 distance[y] = std::min(distance[y], distance[y - 1] + 1);
-            for(int y = size[Y] - 2; y >= 0; y--)
+            for(int y = size.y() - 2; y >= 0; y--)
                 distance[y] = std::min(distance[y], distance[y + 1] + 1);
-            for(int y = 0; y < size[Y]; y++)
+            for(int y = 0; y < size.y(); y++)
                 distance[y] *= distance[y];
-            for(int y = 0; y < size[Y]; y++)
+            for(int y = 0; y < size.y(); y++)
                 sdf[x][y] = distance[y];
         }
-        for(int x = 0; x < size[X]; x++)
+        for(int x = 0; x < size.x(); x++)
         {
-            for(int y = 1; y < size[Y]; y++)
+            for(int y = 1; y < size.y(); y++)
                 distance[y] = exp[x][y][0]? INF: 0;
-            distance[0] = distance[size[Y] - 1] = 0;
-            for(int y = 1; y < size[Y]; y++)
+            distance[0] = distance[size.y() - 1] = 0;
+            for(int y = 1; y < size.y(); y++)
                 distance[y] = std::min(distance[y], distance[y - 1] + 1);
-            for(int y = size[Y] - 2; y >= 0; y--)
+            for(int y = size.y() - 2; y >= 0; y--)
                 distance[y] = std::min(distance[y], distance[y + 1] + 1);
-            for(int y = 0; y < size[Y]; y++)
+            for(int y = 0; y < size.y(); y++)
                 distance[y] *= distance[y];
-            for(int y = 0; y < size[Y]; y++)
+            for(int y = 0; y < size.y(); y++)
                 negative[x][y] = distance[y];
         }
 
         /* Calculate the distance in the y direction */
-        f.resize(size[X]);
-        distance.resize(size[X]);
-        int* v = new int[size[X]];
-        double* z = new double[size[X] + 1];
-        for(int k, q, y = 0; y < size[Y]; y++)
+        f.resize(size.x());
+        distance.resize(size.x());
+        int* v = new int[size.x()];
+        double* z = new double[size.x() + 1];
+        for(int k, q, y = 0; y < size.y(); y++)
         {
             double s;
             v[0] = 0; z[0] = -(z[1] = INF);
-            for(int x = 0; x < size[X]; x++)
+            for(int x = 0; x < size.x(); x++)
                 f[x] = sdf[x][y];
-            for(k = q = 1; q < size[X]; q++)
+            for(k = q = 1; q < size.x(); q++)
             {
                 do {k--;}
                 while(z[k] >= (s = (
@@ -131,21 +127,21 @@ namespace simulator
                 z[k++] = s;
                 z[k] = INF;
             }
-            for(k = q = 0; q < size[X]; q++)
+            for(k = q = 0; q < size.x(); q++)
             {
                 while(z[++k] < q);
                 --k; distance[q] = f[v[k]] + (q - v[k]) * (q - v[k]);
             }
-            for(int x = 0; x < size[X]; x++)
+            for(int x = 0; x < size.x(); x++)
                 sdf[x][y] = distance[x];
         }
-        for(int k, q, y = 0; y < size[Y]; y++)
+        for(int k, q, y = 0; y < size.y(); y++)
         {
             double s;
             v[0] = 0; z[0] = -(z[1] = INF);
-            for(int x = 0; x < size[X]; x++)
+            for(int x = 0; x < size.x(); x++)
                 f[x] = negative[x][y];
-            for(k = q = 1; q < size[X]; q++)
+            for(k = q = 1; q < size.x(); q++)
             {
                 do {k--;}
                 while(z[k] >= (s = (
@@ -155,20 +151,20 @@ namespace simulator
                 z[k++] = s;
                 z[k] = INF;
             }
-            for(k = q = 0; q < size[X]; q++)
+            for(k = q = 0; q < size.x(); q++)
             {
                 while(z[++k] < q);
                 --k; distance[q] = f[v[k]] + (q - v[k]) * (q - v[k]);
             }
-            for(int x = 0; x < size[X]; x++)
+            for(int x = 0; x < size.x(); x++)
                 negative[x][y] = distance[x];
         }
         delete[] z;
         delete[] v;
 
         /* Map the result to Euclidean distance */
-        for(int x = 0; x < size[X]; x++)
-            for(int y = 0; y < size[Y]; y++)
+        for(int x = 0; x < size.x(); x++)
+            for(int y = 0; y < size.y(); y++)
                 sdf[x][y] = ! exp[x][y][0]
                             ? resolution * std::sqrt(sdf[x][y])
                             : resolution * -std::sqrt(negative[x][y]);
@@ -178,26 +174,26 @@ namespace simulator
     {
         expansion = sz;
         int dist = std::round(sz / resolution);
-        for(int x0 = 0; x0 < size[X]; x0++)
-            for(int y0 = 0; y0 < size[Y]; y0++)
-                for(int z0 = 0; z0 < size[Z]; z0++)
+        for(int x0 = 0; x0 < size.x(); x0++)
+            for(int y0 = 0; y0 < size.y(); y0++)
+                for(int z0 = 0; z0 < size.z(); z0++)
                     if(map[x0][y0][z0])
                     {
                         int x1 = std::max(x0 - dist, 0);
                         int y1 = std::max(y0 - dist, 0);
                         int z1 = std::max(z0 - dist, 0);
-                        int x2 = std::min(x0 + dist, size[X] - 1);
-                        int y2 = std::min(y0 + dist, size[Y] - 1);
-                        int z2 = std::min(z0 + dist, size[Z] - 1);
+                        int x2 = std::min(x0 + dist, size.x() - 1);
+                        int y2 = std::min(y0 + dist, size.y() - 1);
+                        int z2 = std::min(z0 + dist, size.z() - 1);
                         for(int x = x1; x <= x2; x++)
                             for(int y = y1; y <= y2; y++)
                                 for(int z = z1; z <= z2; z++)
                                     exp[x][y][z] = true;
                     }
-        for(int x = 0; x < size[X]; x++)
-            exp[x][0][0] = exp[size[X] - 1][0][0] = true;
-        for(int y = 0; y < size[Y]; y++)
-            exp[0][y][0] = exp[0][size[Y] - 1][0] = true;
+        for(int x = 0; x < size.x(); x++)
+            exp[x][0][0] = exp[size.x() - 1][0][0] = true;
+        for(int y = 0; y < size.y(); y++)
+            exp[0][y][0] = exp[0][size.y() - 1][0] = true;
     }
 
     void Map::random(double x1, double y1,
@@ -216,11 +212,11 @@ namespace simulator
         /* Generate map */
         for(int obstacle = 0; obstacle < obstacles; obstacle++)
         {
-            x1 = rand() % size[X];
-            y1 = rand() % size[Y];
-            x2 = std::min(size[X] - 1., x1 + rand() % s + 1);
-            y2 = std::min(size[Y] - 1., y1 + rand() % s + 1);
-            int z0 = std::max(rand() % size[Z], size[Z] >> 1);
+            x1 = rand() % size.x();
+            y1 = rand() % size.y();
+            x2 = std::min(size.x() - 1., x1 + rand() % s + 1);
+            y2 = std::min(size.y() - 1., y1 + rand() % s + 1);
+            int z0 = std::max(rand() % size.z(), size.z() >> 1);
             for(int x = x1; x < x2; x++)
                 for(int y = y1; y < y2; y++)
                     for(int z = 0; z <= z0; z++)
@@ -233,11 +229,11 @@ namespace simulator
         {
             x1 = std::max(positions[robot][0] - xy, 0.);
             y1 = std::max(positions[robot][1] - xy, 0.);
-            x2 = std::min(positions[robot][0] + xy, size[X] * 1.);
-            y2 = std::min(positions[robot][1] + xy, size[Y] * 1.);
+            x2 = std::min(positions[robot][0] + xy, size.x() * 1.);
+            y2 = std::min(positions[robot][1] + xy, size.y() * 1.);
             for(int x = x1; x < x2; x++)
                 for(int y = y1; y < y2; y++)
-                    for(int z = 0; z < size[Z]; z++)
+                    for(int z = 0; z < size.z(); z++)
                         map[x][y][z] = false;
         }
     }
