@@ -203,7 +203,7 @@ Visualization Manager:
       Buffer Length: 1
       Class: rviz/Path
       Color: 92; 53; 102
-      Enabled: true
+      Enabled: false
       Head Diameter: 0.30000001192092896
       Head Length: 0.20000000298023224
       Length: 0.30000001192092896
@@ -222,12 +222,12 @@ Visualization Manager:
       Shaft Length: 0.10000000149011612
       Topic: /target/trajectory
       Unreliable: false
-      Value: true
+      Value: false
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
       Color: 25; 255; 0
-      Enabled: true
+      Enabled: false
       Head Diameter: 0.30000001192092896
       Head Length: 0.20000000298023224
       Length: 0.30000001192092896
@@ -246,7 +246,7 @@ Visualization Manager:
       Shaft Length: 0.10000000149011612
       Topic: /tracker/trajectory
       Unreliable: false
-      Value: true
+      Value: false
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
