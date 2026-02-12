@@ -65,6 +65,7 @@ int main(int argc, char* argv[])
         ros::Duration(nh.param("map/publish_time", 1)),
         [&mapper, &map, &frame](const ros::TimerEvent&){
             mapper.publish(simulator::map2msg(map, *frame));
+            ROS_INFO("Map initialized.");
         }, true
     );
     map.distance();
@@ -273,32 +274,41 @@ int main(int argc, char* argv[])
     /* Benchmarking */
     ros::Timer benchmark = nh.createTimer(
         ros::Duration(times[0]),
-        [&benchmarking, &env, &alpha, &x](const ros::TimerEvent&){
-            if(benchmarking)
+        [&benchmarking, &automatic, &env, &alpha, &x](const ros::TimerEvent&){
+            if(benchmarking || automatic)
             {
                 /* Calculate yaw angle error */
                 const double ae = env.angle();
-                ROS_DEBUG("AE: %f", ae);
-
+                const bool out = ae >= alpha;
+                if(out)
+                    ROS_WARN("AE: %f", ae);
+                else
+                    ROS_INFO("AE: %f", ae);
+                
                 /* Calculate tracking distance */
                 const double td = env.distance();
-                ROS_DEBUG("TD: %f", td);
+                const bool far = td > x * 1.5;
+                const bool near = td < 1;
+                if(far || near)
+                    ROS_WARN("TD: %f", td);
+                else
+                    ROS_INFO("TD: %f", td);
+
+                /* Print tracking status */
+                if(near)
+                    ROS_WARN("Too near!");
+                else if(out)
+                    ROS_WARN("Out of FoV!");
+                else if(env.occlusion())
+                    ROS_WARN("Occlusion!");
+                else if(far)
+                    ROS_WARN("Out of FoV!");
+                else
+                    ROS_INFO("Success tracking!");
 
                 /* Calculate the projected position of the target */
                 const Eigen::Vector2d projected = env.project();
                 ROS_DEBUG("Projected: %f %f", projected.x(), projected.y());
-
-                /* Print tracking status */
-                if(td < 1)
-                    ROS_WARN("Too near!");
-                else if(ae >= alpha)
-                    ROS_WARN("Out of FoV!");
-                else if(env.occlusion())
-                    ROS_WARN("Occlusion!");
-                else if(td > x * 1.5)
-                    ROS_WARN("Out of FoV!");
-                else
-                    ROS_INFO("Success tracking!");
             }
         }
     );

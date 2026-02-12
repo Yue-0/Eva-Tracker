@@ -1,12 +1,10 @@
 # Eva-Tracker
 
-## Introduction
-
-__Eva-Tracker__ is an ESDF-update-free, Visibility-Aware trajectory planning framework for aerial tracking.
+__Eva-Tracker__ is an ESDF-update-free, Visibility-Aware trajectory planning framework for aerial tracking. It enables trajectory optimization without updating the environmental ESDF or generating safe flight corridors.
 
 ## Paper
 
-__Eva-Tracker: ESDF-update-free, Visibility-aware Planning with Target Reacquisition for Robust Aerial Tracking__. Accepted by __ICRA 2026__. The full paper will be published soon.
+__Eva-Tracker: ESDF-update-free, Visibility-aware Planning with Target Reacquisition for Robust Aerial Tracking__. Accepted by __ICRA 2026__. The full paper and video will be published soon.
 
 Author: [Yue Lin](https://github.com/Yue-0), Yang Liu, Dong Wang, Huchuan Lu.
 
@@ -35,18 +33,16 @@ catkin_make
 Start the simulation environment:
 
 ```shell
-source devel/setup.zsh
 roslaunch simulator simulation.launch
 ```
 
 Start the tracker in another terminal, and the tracker will track the target autonomously:
 
 ```shell
-source devel/setup.zsh
 roslaunch tracker tracking.launch
 ```
 
-Use `2D Nav Goal` to control the target movement.
+You can use `2D Nav Goal` to control the target movement, or use `Publish Point` to start/stop random movement of the target.
 
 ### Run in real world
 
@@ -57,13 +53,7 @@ Our drone platform is shown in the figure, equipped with a Livox Mid-360 LiDAR a
 For the first run, make sure your device supports `TensorRT` and then export the object detection model, which would take a while:
 
 ```shell
-python onnx2trt.py
-```
-
-In line 4 of [src/tracker/CMakeLists.txt](src/tracker/CMakeLists.txt), set the value of `REAL_WORLD` to `TRUE`:
-
-```CMake
-set(REAL_WORLD TRUE)
+python3 onnx2trt.py
 ```
 
 Make sure your device supports CUDA, then compile the project.
