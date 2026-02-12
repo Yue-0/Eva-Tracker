@@ -1,8 +1,7 @@
 #include <cmath>
 #include <fstream>
 
-#include "logger"
-
+#include "perception/logger.hpp"
 #include "perception/monoloco.hpp"
 
 const double PI = std::acos(-1);
@@ -21,7 +20,7 @@ namespace eva_tracker
         delete context;
     }
 
-    MonoLoco::MonoLoco(std::string path): init(false)
+    MonoLoco::MonoLoco(const std::string& path): init(false)
     {
         /* Initialize */
         size_t size{0};

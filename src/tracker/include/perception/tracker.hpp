@@ -35,19 +35,24 @@ namespace eva_tracker
             int samples, memory, step, observations;
         
         public:
-            Tracker(Bezier*, std::string, std::string, int, int, int, double);
+            Tracker(Bezier* b, std::string frame, std::string tracking, 
+                    int dps, int fps, int sample, double interval);
         
         public:
-            void filter(ros::Time);
-            bool push(Eigen::Vector3f, bool);
-            float broadcast(ros::Time, float);
-            nav_msgs::Path* trajectory(ros::Time);
-            nav_msgs::Path* update(ros::Time, float);
-            void prediction(nav_msgs::Path::ConstPtr);
-            void localization(nav_msgs::Odometry::ConstPtr);
-            nav_msgs::Odometry odom(std::string, std::string);
+            void filter(const ros::Time& time);
+            void prediction(nav_msgs::Path::ConstPtr ctrl);
+            bool push(const Eigen::Vector3f& obs, bool refind);
+            float broadcast(const ros::Time& time, float yaw);
+            nav_msgs::Path* trajectory(const ros::Time& time);
+            void localization(nav_msgs::Odometry::ConstPtr odom);
+            nav_msgs::Path* update(const ros::Time& time, float yaw);
+            nav_msgs::Odometry odom(const std::string& frame, 
+                                    const std::string& child) const;
             bool push(){--buffers; return push(Eigen::Vector3f::Zero(), false);}
     };
 
-    nav_msgs::Path FoV(std::string, double, double, double);
+    nav_msgs::Path FoV(const std::string& frame, 
+                       const double distance, 
+                       const double alpha, 
+                       const double beta);
 }

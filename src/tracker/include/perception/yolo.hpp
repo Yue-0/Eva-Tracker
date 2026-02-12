@@ -37,7 +37,8 @@ namespace eva_tracker
             Eigen::Matrix<float, SKELETON, 3> skeleton;
         
         public:
-            Person(cv::Rect2d, float, std::vector<cv::Point3f>);
+            Person(cv::Rect2d rect, float score, 
+                   std::vector<cv::Point3f> points);
         
         /* For visualization */
         private:
@@ -104,7 +105,8 @@ namespace eva_tracker
             cv::Scalar color = cv::Scalar(0xF, 0xAF, 0x42);
         
         public:
-            void visualize(cv::Mat&, double, bool, bool, bool);
+            void visualize(cv::Mat& image, double threshold, 
+                           bool rect, bool points, bool lines) const;
     };
 
     class YOLOv11Pose
@@ -136,16 +138,22 @@ namespace eva_tracker
         
         public:
             ~YOLOv11Pose();
-            YOLOv11Pose(std::string);
-            Eigen::Vector3f solve(const cv::Mat&, Person&, 
-                                  float, float, float, float);
-            std::vector<Person> detect(const cv::Mat&, double, bool, double);
-            void visualize(cv::Mat&, std::vector<Person>&, bool, bool, bool);
+            YOLOv11Pose(std::string path);
+            Eigen::Vector3f solve(const cv::Mat& depth, 
+                                  const Person& person, 
+                                  float fx, float fy, float cx, float cy);
+            std::vector<Person> detect(const cv::Mat& img, double threshold, 
+                                       bool single, double nms);
+            void visualize(cv::Mat& image, std::vector<Person>& objects, 
+                           bool boxes, bool keypoints, bool lines);
         
         private:
             inline void inference();
-            inline void preprocess(const cv::Mat&);
-            inline std::vector<Person> decode(cv::Size, double, bool, double);
-            float value(int row, int col) {return detection[col + row * DIM];}
+            inline void preprocess(const cv::Mat& mat);
+            inline std::vector<Person> decode(cv::Size size, double threshold, 
+                                              bool single, double nms);
+            float value(int row, int col) const {
+                return detection[col + row * DIM];
+            }
     };
 }

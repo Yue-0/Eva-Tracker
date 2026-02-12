@@ -4,9 +4,8 @@
 #include <limits>
 #include <fstream>
 
-#include "logger"
-
 #include "perception/yolo.hpp"
+#include "perception/logger.hpp"
 
 namespace eva_tracker
 {
@@ -27,7 +26,7 @@ namespace eva_tracker
     }
 
     void Person::visualize(cv::Mat& image, double threshold,
-                           bool rect, bool points, bool lines)
+                           bool rect, bool points, bool lines) const
     {
         /* Visualize box */
         if(rect) cv::rectangle(image, box, color, 4);
@@ -112,7 +111,8 @@ namespace eva_tracker
         detect(warmup, 0.5, false, 0.5); detect(warmup, 0.5, false, 0.5);
     }
 
-    Eigen::Vector3f YOLOv11Pose::solve(const cv::Mat& depth, Person& person,
+    Eigen::Vector3f YOLOv11Pose::solve(const cv::Mat& depth, 
+                                       const Person& person,
                                        float fx, float fy, float cx, float cy)
     {
         /* Select ROI */

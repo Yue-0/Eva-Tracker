@@ -34,15 +34,15 @@ namespace eva_tracker
         
         public:
             ~MonoLoco();
-            MonoLoco(std::string);
+            MonoLoco(const std::string& path);
         
         public:
-            void process(Eigen::Matrix<float, SKELETON, 3>,
-                         float, float, float, float);
+            void process(Eigen::Matrix<float, SKELETON, 3> skeleton,
+                         float fx, float fy, float cx, float cy);
         
         private:
             inline void inference();
-            inline void initialize(float, float, float, float);
-            inline void preprocess(Eigen::Matrix<float, SKELETON, 3>&);
+            inline void initialize(float fx, float fy, float cx, float cy);
+            inline void preprocess(Eigen::Matrix<float, SKELETON, 3>& kps);
     };
 }

@@ -34,7 +34,7 @@ namespace eva_tracker
         position.setZero();
     }
 
-    void Tracker::filter(ros::Time time)
+    void Tracker::filter(const ros::Time& time)
     {
         if(!buffers)
             position = (*bezier)[(time - stamp).toSec()].cast<float>();
@@ -45,7 +45,19 @@ namespace eva_tracker
         }
     }
 
-    bool Tracker::push(Eigen::Vector3f obs, bool refind)
+    void Tracker::prediction(nav_msgs::Path::ConstPtr ctrl)
+    {
+        stamp = ctrl->header.stamp;
+        const int num = ctrl->poses.size();
+        for(int p = 0; p < num; p++)
+        {
+            bezier->control(0, p) = ctrl->poses[p].pose.position.x;
+            bezier->control(1, p) = ctrl->poses[p].pose.position.y;
+            bezier->control(2, p) = ctrl->poses[p].pose.position.z;
+        }
+    }
+
+    bool Tracker::push(const Eigen::Vector3f& obs, bool refind)
     {
         if(refind)
         {
@@ -58,7 +70,7 @@ namespace eva_tracker
         return !(index *= !(index == memory));
     }
 
-    float Tracker::broadcast(ros::Time time, float yaw)
+    float Tracker::broadcast(const ros::Time& time, float yaw)
     {
         const float w = quaternion.w();
         const float x = quaternion.x();
@@ -71,7 +83,7 @@ namespace eva_tracker
         return yaw;
     }
 
-    nav_msgs::Path* Tracker::trajectory(ros::Time time)
+    nav_msgs::Path* Tracker::trajectory(const ros::Time& time)
     {
         target.header.stamp = time;
         if(!path.poses.empty())
@@ -88,12 +100,23 @@ namespace eva_tracker
         return &target;
     }
 
-    nav_msgs::Path* Tracker::update(ros::Time time, float yaw)
+    void Tracker::localization(nav_msgs::Odometry::ConstPtr odom)
+    {
+        point.x() = odom->pose.pose.position.x;
+        point.y() = odom->pose.pose.position.y;
+        point.z() = odom->pose.pose.position.z;
+        quaternion.w() = odom->pose.pose.orientation.w;
+        quaternion.x() = odom->pose.pose.orientation.x;
+        quaternion.y() = odom->pose.pose.orientation.y;
+        quaternion.z() = odom->pose.pose.orientation.z;
+    }
+
+    nav_msgs::Path* Tracker::update(const ros::Time& time, float yaw)
     {
         path.header.stamp = time;
         if(!path.poses.empty())
         {
-            geometry_msgs::Point p = path.poses.back().pose.position;
+            const geometry_msgs::Point p = path.poses.back().pose.position;
             if(std::fabs(position.x() - p.x) < 1e-2 &&
                std::fabs(position.y() - p.y) < 1e-2 &&
                std::fabs(position.z() - p.z) < 1e-2) return &path;
@@ -109,30 +132,8 @@ namespace eva_tracker
         return &path;
     }
 
-    void Tracker::prediction(nav_msgs::Path::ConstPtr ctrl)
-    {
-        stamp = ctrl->header.stamp;
-        int num = ctrl->poses.size();
-        for(int p = 0; p < num; p++)
-        {
-            bezier->control(0, p) = ctrl->poses[p].pose.position.x;
-            bezier->control(1, p) = ctrl->poses[p].pose.position.y;
-            bezier->control(2, p) = ctrl->poses[p].pose.position.z;
-        }
-    }
-
-    void Tracker::localization(nav_msgs::Odometry::ConstPtr odom)
-    {
-        point.x() = odom->pose.pose.position.x;
-        point.y() = odom->pose.pose.position.y;
-        point.z() = odom->pose.pose.position.z;
-        quaternion.w() = odom->pose.pose.orientation.w;
-        quaternion.x() = odom->pose.pose.orientation.x;
-        quaternion.y() = odom->pose.pose.orientation.y;
-        quaternion.z() = odom->pose.pose.orientation.z;
-    }
-
-    nav_msgs::Odometry Tracker::odom(std::string frame, std::string child)
+    nav_msgs::Odometry Tracker::odom(const std::string& frame, 
+                                     const std::string& child) const
     {
         nav_msgs::Odometry odom;
         odom.child_frame_id = child;
@@ -141,10 +142,10 @@ namespace eva_tracker
         return odom;
     }
 
-    nav_msgs::Path FoV(std::string frame,
-                       double distance, 
-                       double alpha,
-                       double beta)
+    nav_msgs::Path FoV(const std::string& frame,
+                       const double distance, 
+                       const double alpha,
+                       const double beta)
     {
         const double y = distance * std::tan(alpha * PI / 360.);
         const double z = distance * std::tan(beta * PI / 360.);
