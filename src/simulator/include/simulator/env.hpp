@@ -14,20 +14,20 @@ namespace simulator
         
         public:
             Environment(Map* ptr,
-                        double target_x,
-                        double target_y,
-                        double target_z,
-                        double target_yaw,
-                        double target_w,
-                        double target_l,
-                        double target_h,
-                        double tracker_x,
-                        double tracker_y,
-                        double tracker_z,
-                        double tracker_yaw,
-                        double tracker_w,
-                        double tracker_l,
-                        double tracker_h): map(ptr)
+                        const double target_x,
+                        const double target_y,
+                        const double target_z,
+                        const double target_yaw,
+                        const double target_w,
+                        const double target_l,
+                        const double target_h,
+                        const double tracker_x,
+                        const double tracker_y,
+                        const double tracker_z,
+                        const double tracker_yaw,
+                        const double tracker_w,
+                        const double tracker_l,
+                        const double tracker_h): map(ptr)
             {
                 target = Robot({
                     target_x, target_y, target_z, target_yaw
@@ -52,7 +52,7 @@ namespace simulator
             }
 
         public:
-            void step(double dt)
+            void step(const double dt)
             {
                 target.move(dt); crop(target);
                 tracker.move(dt); crop(tracker);
@@ -60,7 +60,7 @@ namespace simulator
         
         /* For benchmarking */
         public:
-            double angle()
+            double angle() const
             {
                 return std::fabs(clip(std::atan2(
                     target.pose.y() - tracker.pose.y(),
@@ -68,7 +68,7 @@ namespace simulator
                 ) - tracker.pose.w()));
             }
 
-            Eigen::Vector2d project()
+            Eigen::Vector2d project() const
             {
                 double sin = std::sin(tracker.pose.w());
                 double cos = std::cos(tracker.pose.w());
@@ -77,7 +77,7 @@ namespace simulator
                 return {cos * x + sin * y, cos * y - sin * x};
             }
             
-            bool occlusion()
+            bool occlusion() const
             {
                 int x, y, z;
                 double r = 1. / map->resolution;
@@ -98,7 +98,7 @@ namespace simulator
                 return false;
             }
 
-            double distance()
+            double distance() const
             {
                 return (target.pose.head(3) - tracker.pose.head(3)).norm();
             }

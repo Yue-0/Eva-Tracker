@@ -46,8 +46,8 @@ namespace simulator
         memory = Eigen::VectorXd::Zero(m);
     }
 
-    nav_msgs::Path Planner::msg(std::string& frame,
-                                std::vector<Eigen::Vector2d>& ctrl)
+    nav_msgs::Path Planner::msg(const std::string& frame,
+                                const std::vector<Eigen::Vector2d>& ctrl)
     {
         /* Initialize message */
         nav_msgs::Path message;

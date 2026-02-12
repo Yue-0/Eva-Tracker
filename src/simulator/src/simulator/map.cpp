@@ -1,6 +1,7 @@
 /* @Author: YueLin */
 
 #include <cmath>
+#include <ctime>
 #include <limits>
 #include <cstdlib>
 
@@ -31,7 +32,7 @@ namespace simulator
         /* Initalize */
         size0 << x, y, z;
         size = (size0 / r).cast<int>();
-        size0 -= r * Eigen::Vector3d::Ones();
+        size0 -= Eigen::Vector3d::Constant(r);
 
         /* Apply for memory */
         map = new bool**[size.x()];
@@ -81,7 +82,7 @@ namespace simulator
         for(int x = 0; x < size.x(); x++)
         {
             for(int y = 0; y < size.y(); y++)
-                distance[y] = exp[x][y][0]? 0: INF;
+                distance[y] = *exp[x][y]? 0: INF;
             for(int y = 1; y < size.y(); y++)
                 distance[y] = std::min(distance[y], distance[y - 1] + 1);
             for(int y = size.y() - 2; y >= 0; y--)
@@ -94,7 +95,7 @@ namespace simulator
         for(int x = 0; x < size.x(); x++)
         {
             for(int y = 1; y < size.y(); y++)
-                distance[y] = exp[x][y][0]? INF: 0;
+                distance[y] = *exp[x][y]? INF: 0;
             distance[0] = distance[size.y() - 1] = 0;
             for(int y = 1; y < size.y(); y++)
                 distance[y] = std::min(distance[y], distance[y - 1] + 1);
@@ -114,7 +115,7 @@ namespace simulator
         for(int k, q, y = 0; y < size.y(); y++)
         {
             double s;
-            v[0] = 0; z[0] = -(z[1] = INF);
+            *v = 0; *z = -(*(z + 1) = INF);
             for(int x = 0; x < size.x(); x++)
                 f[x] = sdf[x][y];
             for(k = q = 1; q < size.x(); q++)
@@ -138,7 +139,7 @@ namespace simulator
         for(int k, q, y = 0; y < size.y(); y++)
         {
             double s;
-            v[0] = 0; z[0] = -(z[1] = INF);
+            *v = 0; *z = -(*(z + 1) = INF);
             for(int x = 0; x < size.x(); x++)
                 f[x] = negative[x][y];
             for(k = q = 1; q < size.x(); q++)
@@ -165,9 +166,9 @@ namespace simulator
         /* Map the result to Euclidean distance */
         for(int x = 0; x < size.x(); x++)
             for(int y = 0; y < size.y(); y++)
-                sdf[x][y] = ! exp[x][y][0]
-                            ? resolution * std::sqrt(sdf[x][y])
-                            : resolution * -std::sqrt(negative[x][y]);
+                sdf[x][y] = !*exp[x][y]
+                          ? resolution * std::sqrt(sdf[x][y])
+                          : resolution * -std::sqrt(negative[x][y]);
     }
 
     void Map::expand(double sz)
@@ -191,9 +192,21 @@ namespace simulator
                                     exp[x][y][z] = true;
                     }
         for(int x = 0; x < size.x(); x++)
-            exp[x][0][0] = exp[size.x() - 1][0][0] = true;
+            *exp[x][0] = *exp[size.x() - 1][0] = true;
         for(int y = 0; y < size.y(); y++)
-            exp[0][y][0] = exp[0][size.y() - 1][0] = true;
+            *exp[0][y] = *exp[0][size.y() - 1] = true;
+    }
+
+    Eigen::Vector2d Map::random() const
+    {
+        int x, y;
+        do
+        {
+            x = std::rand() % size.x();
+            y = std::rand() % size.y();
+        }
+        while(!*exp[x][y]);
+        return resolution * Eigen::Vector2d(x, y);
     }
 
     void Map::random(double x1, double y1,
@@ -201,13 +214,13 @@ namespace simulator
                      double sz, double wh,
                      int seed, int obstacles)
     {
-        std::srand(seed);
         double r = 1 / resolution;
         double positions[2][2] = {
             {std::round(x1 * r), std::round(y1 * r)},
             {std::round(x2 * r), std::round(y2 * r)}
         };
         int s = std::round(wh * r);
+        std::srand(seed >= 0? seed: static_cast<unsigned int>(std::time(0)));
 
         /* Generate map */
         for(int obstacle = 0; obstacle < obstacles; obstacle++)

@@ -30,7 +30,6 @@ add_library(simulator
     src/simulator/map.cpp
     src/simulator/lidar.cpp
     src/simulator/planner.cpp
-    src/simulator/tracker.cpp
 )
 
 # Declare C++ executable

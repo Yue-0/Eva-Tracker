@@ -7,13 +7,25 @@
 #include "simulator/planner.hpp"
 #include "simulator/tracker.hpp"
 
+std::vector<Eigen::Vector2d> plan(double xg, double yg,
+                                  const std::string& frame,
+                                  ros::Publisher* publisher,
+                                  simulator::Planner* planner)
+{
+    std::vector<Eigen::Vector2d> path = planner->plan(xg, yg);
+    publisher->publish(planner->msg(frame, path));
+    std::reverse(path.begin(), path.end());
+    return path;
+}
+
 int main(int argc, char* argv[])
 {
+    /* Initialize ROS */
     ros::init(argc, argv, "simulator"); ros::NodeHandle nh("~");
     ros::MultiThreadedSpinner spinner(nh.param("num_threads", 4));
 
     /* Initialize environment */
-    double size = nh.param("tracker/size", 0.25);
+    const double size = nh.param("tracker/size", 0.25);
     simulator::Map map(
         nh.param("map/size_x", 0xF),
         nh.param("map/size_y", 0xF),
@@ -45,13 +57,13 @@ int main(int argc, char* argv[])
         nh.param("map/num_obstacles", 0x64)
     );
     std::string frame[3];
-    nh.getParam("map/frame", frame[0]);
+    nh.getParam("map/frame", *frame);
     ros::Publisher mapper = nh.advertise<sensor_msgs::PointCloud2>("/map", 1);
     map.expand(std::max(env.target.length, env.target.width) / 2);
     ros::Timer once = nh.createTimer(
         ros::Duration(nh.param("map/publish_time", 1)),
         [&mapper, &map, &frame](const ros::TimerEvent&){
-            mapper.publish(simulator::map2msg(map, frame[0]));
+            mapper.publish(simulator::map2msg(map, *frame));
         }, true
     );
     map.distance();
@@ -59,14 +71,14 @@ int main(int argc, char* argv[])
     /* Lidar publishers */
     nh.getParam("target/frame", frame[2]);
     nh.getParam("tracker/frame", frame[1]);
-    double time = nh.param("lidar/rate", 1e1);
-    double high = nh.param("lidar/height", 1.);
-    double height = nh.param("lidar/dh", 1e-1);
-    double angle = nh.param("lidar/angle", 1.) * PI / 180;
-    double lines = !nh.param("lidar/single", false)? high: 0;
-    double alpha = nh.param("tracker/alpha", 65.) * PI / 360;
-    int range = std::round(nh.param("lidar/max", 5.) / map.resolution);
-    // int dis = std::round(nh.param("tracker/distance", 5.) / map.resolution);
+    const double time = nh.param("lidar/rate", 1e1);
+    const double high = nh.param("lidar/height", 1.);
+    const double height = nh.param("lidar/dh", 1e-1);
+    const double angle = nh.param("lidar/angle", 1.) * PI / 180;
+    const double lines = !nh.param("lidar/single", false)? high: 0;
+    const double alpha = nh.param("tracker/alpha", 65.) * PI / 360;
+    const int range = std::round(nh.param("lidar/max", 5.) / map.resolution);
+    // const int dis = nh.param("tracker/distance", 3.) / map.resolution;
     ros::Publisher laser = nh.advertise<sensor_msgs::PointCloud2>(
         "/tracker/lidar", 1
     );
@@ -77,26 +89,26 @@ int main(int argc, char* argv[])
     //     "/target/lidar", 1
     // );
     ros::Timer lidar = simulator::LiDAR(
-        nh, frame[0], map, env.tracker,
-        laser, 1 / time, lines, height, angle, range
+        nh, *frame, laser, map, env.tracker,
+        1 / time, lines, height, angle, range
     );
     // ros::Timer camera = simulator::depth(
-    //     nh, frame[0], map, env.tracker,
-    //     depth, 1 / time, high, height, alpha, angle, dis
+    //     nh, *frame, depth, map, env.tracker,
+    //     1 / time, high, height, alpha, angle, dis
     // );
     // ros::Timer single = simulator::LiDAR(
-    //     nh, frame[2], map, env.target, sl, 1 / time, angle, range
+    //     nh, frame[2], sl, map, env.target, 1 / time, angle, range
     // );
 
     /* Visualize FoV */
     const double x = nh.param("tracker/distance", 3.);
-    nav_msgs::Path fov = simulator::FoV(frame[1], x, alpha, nh.param(
-        "tracker/beta", 40.
-    ) * PI / 360);
+    const nav_msgs::Path fov = simulator::FoV(
+        frame[1], x, alpha, nh.param("tracker/beta", 40.) * PI / 360
+    );
     ros::Publisher view = nh.advertise<nav_msgs::Path>("/tracker/fov", 1);
 
     /* Position publishers */
-    double times[2] = {
+    const double times[2] = {
         1 / nh.param("target/rate", 1e1),
         1 / nh.param("tracker/rate", 1e2)
     };
@@ -114,8 +126,8 @@ int main(int argc, char* argv[])
         ros::Duration(times[1]), 
         [&tg, &env, &frame, &trajectories, &odometry](const ros::TimerEvent&){
             tg.publish(geometry_msgs::PoseStamped());
-            nav_msgs::Odometry odom = env.target.msg(frame[0], frame[2]);
-            trajectories[1].publish(env.target.trajectoy(frame[0], odom));
+            nav_msgs::Odometry odom = env.target.msg(*frame, frame[2]);
+            trajectories[1].publish(env.target.trajectoy(*frame, odom));
             env.target.broadcast(odom, ros::Time::now());
             odom.twist.twist.linear.x = std::max(
                 env.target.width, env.target.length
@@ -129,8 +141,8 @@ int main(int argc, char* argv[])
         ros::Duration(times[1]), [
             &env, &frame, &trajectories, &odometry, &view, &fov
         ](const ros::TimerEvent&){
-            nav_msgs::Odometry odom = env.tracker.msg(frame[0], frame[1]);
-            trajectories[2].publish(env.tracker.trajectoy(frame[0], odom));
+            const nav_msgs::Odometry odom = env.tracker.msg(*frame, frame[1]);
+            trajectories[2].publish(env.tracker.trajectoy(*frame, odom));
             env.tracker.broadcast(odom, ros::Time::now());
             odometry[1].publish(odom);
             view.publish(fov);
@@ -143,7 +155,7 @@ int main(int argc, char* argv[])
 
     /* SOT */
     simulator::Tracker sot(
-        frame[0], 
+        *frame, 
         nh.param("tracker/fps", 1e1), 
         nh.param("tracker/samples", 10),
         nh.param("tracker/interval", 0.1)
@@ -151,13 +163,13 @@ int main(int argc, char* argv[])
     ros::Timer tracking = nh.createTimer(
         ros::Duration(1. / nh.param("tracker/fps", 1e1)), 
         [&sot, &env, &frame, &trajectories](const ros::TimerEvent&){
-            sot.update(env.target.msg(frame[0]));
-            trajectories[0].publish(sot.path);
+            sot.update(env.target.msg(*frame));
+            trajectories->publish(sot.path);
         }
     );
 
     /* Target Navigation */
-    bool lock = false;
+    simulator::Lock lock;
     simulator::Planner planner(
         &map, &env.target, times[0],
         nh.param("target/max_vel", 1.5),
@@ -177,34 +189,51 @@ int main(int argc, char* argv[])
     ros::Publisher trajectory = nh.advertise<nav_msgs::Path>("/target/plan", 1);
     ros::Subscriber goal = nh.subscribe<geometry_msgs::PoseStamped>(
         "/move_base_simple/goal", 1, [
-            &map, &frame, &path, &lock, &planner, &trajectory
+            &map, &lock, &path, &frame, &trajectory, &planner
         ](const geometry_msgs::PoseStamped::ConstPtr& pose){
             if(pose->pose.position.x <= 0 ||
                pose->pose.position.y <= 0 ||
                pose->pose.position.x > map.size0.x() ||
-               pose->pose.position.y > map.size0.y()) {
-                ROS_WARN("Invalid goal"); return;
+               pose->pose.position.y > map.size0.y()) ROS_WARN("Invalid goal");
+            else
+            {
+                lock.acquire();
+                path = plan(
+                    pose->pose.position.x,
+                    pose->pose.position.y,
+                    *frame, &trajectory, &planner
+                );
+                lock.release();
             }
-            while(lock) 
-                ros::Duration(1e-3).sleep();
-            lock = true;
-            path = planner.plan(pose->pose.position.x, pose->pose.position.y);
-            trajectory.publish(planner.msg(frame[0], path));
-            std::reverse(path.begin(), path.end());
-            lock = false;
         }
     );
+    bool automatic = false;
+    ros::Subscriber click = nh.subscribe<geometry_msgs::PoseStamped>(
+        "/clicked_point", 1, 
+        [&automatic](const geometry_msgs::PoseStamped::ConstPtr&){
+            if((automatic = !automatic)) std::srand(std::time(0));
+        }
+    );
+    ros::Timer random = nh.createTimer(ros::Duration(times[0]), [
+        &automatic, &env, &map, &lock, &path, &frame, &trajectory, &planner
+    ](const ros::TimerEvent&){
+        if(automatic && env.tracker.vel.squaredNorm() <= 1e-4)
+        {
+            Eigen::Vector2d p = map.random();
+            lock.acquire();
+            path = plan(p.x(), p.y(), *frame, &trajectory, &planner);
+            lock.release();
+        }
+    });
     ros::Timer move = nh.createTimer(ros::Duration(times[0]), [
         &path, &planner, &lock, &env, &trajectory, &frame
     ](const ros::TimerEvent&){
-        while(lock) 
-            ros::Duration(1e-4).sleep();
-        lock = true; 
+        lock.acquire();
         const int n = path.size();
         env.target.control(planner.control(path));
         if(n == 3 && path.size() < 3)
-            trajectory.publish(planner.msg(frame[0], path));
-        lock = false;
+            trajectory.publish(planner.msg(*frame, path));
+        lock.release();
     });
 
     /* Subscribers */
@@ -241,30 +270,32 @@ int main(int argc, char* argv[])
     ros::Timer benchmark = nh.createTimer(
         ros::Duration(times[0]),
         [&benchmarking, &env, &alpha, &x](const ros::TimerEvent&){
-            if(!benchmarking) return;
-            
-            /* Calculate yaw angle error */
-            double ae = env.angle();
+            if(benchmarking)
+            {
+                /* Calculate yaw angle error */
+                const double ae = env.angle();
+                ROS_DEBUG("AE: %f", ae);
 
-            /* Calculate tracking distance */
-            double td = env.distance();
+                /* Calculate tracking distance */
+                const double td = env.distance();
+                ROS_DEBUG("TD: %f", td);
 
-            /* Calculate the projected position of the target */
-            Eigen::Vector2d projected = env.project();
+                /* Calculate the projected position of the target */
+                const Eigen::Vector2d projected = env.project();
+                ROS_DEBUG("Projected: %f %f", projected.x(), projected.y());
 
-            /* Print metrics */
-            if(td < 1)
-                ROS_WARN("Too near!");
-            else if(ae >= alpha)
-                ROS_WARN("Out of FoV!");
-            else if(env.occlusion())
-                ROS_WARN("Occlusion!");
-            else if(td > x * 1.5)
-                ROS_WARN("Out of FoV!");
-            else
-                ROS_INFO("Success tracking!");
-            std::cout << "TD: " << ae << "\nAE: " << td << "\nProjected: " 
-                      << projected.x() << " " << projected.y() << std::endl;
+                /* Print tracking status */
+                if(td < 1)
+                    ROS_WARN("Too near!");
+                else if(ae >= alpha)
+                    ROS_WARN("Out of FoV!");
+                else if(env.occlusion())
+                    ROS_WARN("Occlusion!");
+                else if(td > x * 1.5)
+                    ROS_WARN("Out of FoV!");
+                else
+                    ROS_INFO("Success tracking!");
+            }
         }
     );
 

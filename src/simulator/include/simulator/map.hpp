@@ -8,8 +8,6 @@
 
 namespace simulator
 {
-    // const int X = 0, Y = 1, Z = 2;
-
     class Map
     {
         public:
@@ -29,6 +27,7 @@ namespace simulator
             void clear();
             void distance();
             void expand(double sz);
+            Eigen::Vector2d random() const;
             void random(double x1, double y1, double x2, double y2, 
                         double sz, double wh, int seed, int obstacles);
     };

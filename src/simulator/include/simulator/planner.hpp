@@ -38,8 +38,8 @@ namespace simulator
                     double ep, double wol, double arm);
 
         public:
-            nav_msgs::Path msg(std::string& frame, 
-                               std::vector<Eigen::Vector2d>& ctrl);
+            nav_msgs::Path msg(const std::string& frame, 
+                               const std::vector<Eigen::Vector2d>& ctrl);
             std::vector<Eigen::Vector2d> plan(double xg, double yg);
             Eigen::Vector4d control(std::vector<Eigen::Vector2d>& path);
         

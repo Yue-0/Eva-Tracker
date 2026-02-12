@@ -10,7 +10,7 @@ const double INF = std::numeric_limits<double>::infinity();
 
 namespace simulator
 {
-    sensor_msgs::PointCloud2 map2msg(Map& map, std::string& frame)
+    sensor_msgs::PointCloud2 map2msg(const Map& map, const std::string& frame)
     {
         /* Map -> Point cloud */
         pcl::PointCloud<pcl::PointXYZ> cloud;
@@ -18,11 +18,11 @@ namespace simulator
             for(int y = 0; y < map.size.y(); y++)
                 for(int z = 0; z < map.size.z(); z++)
                     if(map.map[x][y][z])
-                        cloud.push_back(pcl::PointXYZ(
+                        cloud.emplace_back(
                             x * map.resolution,
                             y * map.resolution,
                             z * map.resolution
-                        ));
+                        );
         cloud.height = 1;
         cloud.is_dense = true;
         cloud.width = cloud.points.size();
@@ -31,26 +31,26 @@ namespace simulator
         return cloud2msg(cloud, frame);
     }
 
-    sensor_msgs::PointCloud2 cloud2msg(pcl::PointCloud<pcl::PointXYZ>& cloud, 
-                                       std::string& frame)
+    sensor_msgs::PointCloud2 cloud2msg(const pcl::PointCloud<pcl::PointXYZ>& c, 
+                                       const std::string& frame)
     {
         sensor_msgs::PointCloud2 msg;
-        pcl::toROSMsg(cloud, msg);
+        pcl::toROSMsg(c, msg);
         msg.header.frame_id = frame;
         return msg;
     }
 
     ros::Timer LiDAR(ros::NodeHandle& n,
-                     std::string& frame,
-                     Map& map, Robot& robot,
-                     ros::Publisher& publisher,
-                     double time, double& total, 
-                     double& height, double& angle, int& range)
+                     const std::string& frame,
+                     const ros::Publisher& publisher,
+                     const Map& map, const Robot& robot,
+                     const double time, const double& total, 
+                     const double& dh, const double& angle, const int& range)
     {
         static double pi = PI;
         if(range) return depth(
-            n, frame, map, robot, publisher, 
-            time, total, height, pi, angle, range
+            n, frame, publisher, map, robot, 
+            time, total, dh, pi, angle, range
         );
         return n.createTimer(
             ros::Duration(time), [](const ros::TimerEvent&){}, true
@@ -58,10 +58,10 @@ namespace simulator
     }
 
     ros::Timer LiDAR(ros::NodeHandle& n,
-                     std::string& frame,
-                     Map& map, Robot& robot,
-                     ros::Publisher& publisher,
-                     double time, double& angle, int& range)
+                     const std::string& frame,
+                     const ros::Publisher& publisher,
+                     const Map& map, const Robot& robot,
+                     const double time, const double& angle, const int& range)
     {
         return n.createTimer(ros::Duration(time), [&](const ros::TimerEvent&){
             /* Position */
@@ -118,11 +118,11 @@ namespace simulator
     }
 
     ros::Timer depth(ros::NodeHandle& n,
-                     std::string& frame,
-                     Map& map, Robot& robot,
-                     ros::Publisher& publisher,
-                     double time, double& total, double& height, 
-                     double& angles, double& angle, int& range)
+                     const std::string& frame,
+                     const ros::Publisher& publisher,
+                     const Map& map, const Robot& robot,
+                     const double time, const double& total, const double& dh, 
+                     const double& angles, const double& da, const int& range)
     {
         return n.createTimer(ros::Duration(time), [&](const ros::TimerEvent&){
             /* Position */
@@ -132,14 +132,14 @@ namespace simulator
             int z0 = std::round(robot.pose.z() * r);
 
             /* Initialize */
-            int dz = height * r;
+            int dz = dh * r;
             int h0 = (total * r) / 2;
             int z1 = std::max(z0 - h0, 0);
             int z2 = std::min(z0 + h0, map.size.z() - 1);
             
             /* Laser scan */
             pcl::PointCloud<pcl::PointXYZ> cloud;
-            for(float rad = -angles; rad < angles; rad += angle)
+            for(float rad = -angles; rad < angles; rad += da)
             {
                 double sin = std::sin(rad + robot.pose.w());
                 double cos = std::cos(rad + robot.pose.w());
@@ -154,11 +154,11 @@ namespace simulator
                         if(y < 0 || y >= map.size.y()) break;
                         if(map.map[x][y][z])
                         {
-                            cloud.push_back(pcl::PointXYZ(
+                            cloud.emplace_back(
                                 t * map.resolution * cos + robot.pose.x(),
                                 t * map.resolution * sin + robot.pose.y(),
                                 z * map.resolution
-                            ));
+                            );
                             break;
                         }
                     }
@@ -173,10 +173,10 @@ namespace simulator
         });
     }
 
-    nav_msgs::Path FoV(std::string frame,
-                       double distance, 
-                       double alpha,
-                       double beta)
+    nav_msgs::Path FoV(const std::string& frame,
+                       const double distance, 
+                       const double alpha,
+                       const double beta)
     {
         nav_msgs::Path fov;
         geometry_msgs::PoseStamped poses[5];

@@ -27,6 +27,22 @@ namespace simulator
             return 2 * std::floor(0.5 - rad / (2 * PI)) * PI + rad;
         return rad;
     }
+
+    class Lock
+    {
+        private:
+            bool value = false;
+        
+        public:
+            Lock() = default;
+        
+        private:
+            void sleep1ms() const {usleep(1000U);}
+
+        public:
+            void release() {value = false;}
+            void acquire() {while(value) sleep1ms(); value = true;}
+    };
     
     class Robot
     {
@@ -35,7 +51,7 @@ namespace simulator
             double length, width, height;
         
         private:
-            bool lock = false;
+            Lock lock;
             nav_msgs::Path path;
             tf::Transform transform;
             tf::Quaternion quaternion;
@@ -54,38 +70,34 @@ namespace simulator
                 vel.setZero();
                 pose = position;
             }
-
-        private:
-            void unlock() {lock = false;}
-            void wait4lock() {while(lock) usleep(100U); lock = true;}
         
         public:
             void move(double dt)
             {
-                wait4lock();
+                lock.acquire();
                 pose += vel * dt;
                 pose.w() = clip(pose.w());
-                unlock();
+                lock.release();
             }
 
             void control(const Eigen::Vector4d& velocity)
             {
-                wait4lock();
+                lock.acquire();
                 vel = velocity;
-                unlock();
+                lock.release();
             }
 
             void control(quadrotor_msgs::PositionCommand::ConstPtr cmd)
             {
-                wait4lock();
+                lock.acquire();
                 vel << cmd->velocity.x, 
                        cmd->velocity.y, 
                        cmd->velocity.z, 
                        cmd->yaw_dot;
-                unlock();
+                lock.release();
             }
 
-            void broadcast(nav_msgs::Odometry& odom, ros::Time time)
+            void broadcast(const nav_msgs::Odometry& odom, const ros::Time& t)
             {
                 transform.setOrigin(tf::Vector3(
                     odom.pose.pose.position.x,
@@ -95,11 +107,11 @@ namespace simulator
                 tf::quaternionMsgToTF(odom.pose.pose.orientation, quaternion);
                 transform.setRotation(quaternion);
                 b.sendTransform(tf::StampedTransform(
-                    transform, time, odom.header.frame_id, odom.child_frame_id
+                    transform, t, odom.header.frame_id, odom.child_frame_id
                 ));
             }
 
-            geometry_msgs::PoseStamped msg(std::string& frame)
+            geometry_msgs::PoseStamped msg(const std::string& frame) const
             {
                 geometry_msgs::PoseStamped ps;
                 ps.pose.position.x = pose.x();
@@ -110,7 +122,8 @@ namespace simulator
                 return ps;
             }
             
-            nav_msgs::Odometry msg(std::string& frame, std::string& child)
+            nav_msgs::Odometry msg(const std::string& frame, 
+                                   const std::string& child)
             {
                 nav_msgs::Odometry odom;
                 odom.child_frame_id = child;
@@ -128,8 +141,8 @@ namespace simulator
                 return odom;
             }
 
-            nav_msgs::Path trajectoy(std::string frame,
-                                     nav_msgs::Odometry& odom)
+            nav_msgs::Path trajectoy(const std::string& frame,
+                                     const nav_msgs::Odometry& odom)
             {
                 geometry_msgs::PoseStamped pose;
                 path.header.frame_id = frame;
