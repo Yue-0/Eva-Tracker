@@ -1,6 +1,7 @@
 /* @Author: YueLin */
 
 #include "sensor_msgs/LaserScan.h"
+#include "geometry_msgs/PointStamped.h"
 
 #include "simulator/env.hpp"
 #include "simulator/lidar.hpp"
@@ -208,16 +209,16 @@ int main(int argc, char* argv[])
         }
     );
     bool automatic = false;
-    ros::Subscriber click = nh.subscribe<geometry_msgs::PoseStamped>(
+    ros::Subscriber click = nh.subscribe<geometry_msgs::PointStamped>(
         "/clicked_point", 1, 
-        [&automatic](const geometry_msgs::PoseStamped::ConstPtr&){
+        [&automatic](const geometry_msgs::PointStamped::ConstPtr&){
             if((automatic = !automatic)) std::srand(std::time(0));
         }
     );
     ros::Timer random = nh.createTimer(ros::Duration(times[0]), [
-        &automatic, &env, &map, &lock, &path, &frame, &trajectory, &planner
+        &automatic, &path, &map, &lock, &frame, &trajectory, &planner
     ](const ros::TimerEvent&){
-        if(automatic && env.tracker.vel.squaredNorm() <= 1e-4)
+        if(automatic && path.empty())
         {
             Eigen::Vector2d p = map.random();
             lock.acquire();
@@ -232,7 +233,10 @@ int main(int argc, char* argv[])
         const int n = path.size();
         env.target.control(planner.control(path));
         if(n == 3 && path.size() < 3)
+        {
+            path.clear();
             trajectory.publish(planner.msg(*frame, path));
+        }
         lock.release();
     });
 
