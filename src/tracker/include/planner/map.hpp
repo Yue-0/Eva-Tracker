@@ -24,11 +24,14 @@ namespace eva_tracker
 
         public:
             ~Map();
-            Map(double, double, double, double);
+            Map(double l, double w, double h, double r);
             pcl::PointCloud<pcl::PointXYZ> map() const;
             pcl::PointCloud<pcl::PointXYZ> update(
-                const pcl::PointCloud<pcl::PointXYZ>&,
-                const Eigen::Vector3d&, Eigen::Vector3d*, double, double
+                const pcl::PointCloud<pcl::PointXYZ>& cloud,
+                const Eigen::Vector3d& center, 
+                Eigen::Vector3d* target, 
+                double expansion, 
+                double range
             );
                 
             bool get(Eigen::Vector3d point) const
