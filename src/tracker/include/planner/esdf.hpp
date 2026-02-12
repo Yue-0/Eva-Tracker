@@ -2,58 +2,47 @@
 
 #pragma once
 
+#include <limits>
 #include <vector>
-#include <Eigen/Eigen>
+
+#include "Eigen/Eigen"
 
 namespace eva_tracker
 {
     class ESDF
     {
         private:
-            int size[3];
             double*** esdf;
+            Eigen::Vector3i size;
             Eigen::Vector3d offset;
             double resolution, maximum;
-            const int X = 0, Y = 1, Z = 2;
+            const double inf = std::numeric_limits<double>::infinity();
         
         public:
             ~ESDF();
 
-            /* Construct the ESDF */
-            ESDF(double, double, double, double);   // FoV-ESDF
-            ESDF(Eigen::Vector3d, double, double);  // RC-ESDF
+            /* Construct the FoV-ESDF */
+            ESDF(double alpha, double beta, double distance, double r);
+
+            /* Construct the RC-ESDF */
+            ESDF(const Eigen::Vector3d& robot, double r, double expansion);
+
+            /* Get the ESDF value and gradient */
+            double value(Eigen::Vector3d point, Eigen::Vector3d* grad) const;
 
             /* Get the index of the maximum value */
             Eigen::Vector3d argmax();
 
-            /* Get the gradient value of ESDF */
-            Eigen::Vector3d gradient(Eigen::Vector3d);
-
             /* Get the maximum value */
-            double max() {if(maximum < 0) argmax(); return maximum;}
-
-            /* Get the ESDF value */
-            double get(Eigen::Vector3d& point) {return value(transform(point));}
+            double max()
+            {
+                if(maximum < 0)
+                    argmax();
+                return maximum;
+            }
 
         private:
             void build(bool***);
-            double value(Eigen::Vector3d);
-            void dt(std::vector<double>&);
-            void dt(std::vector<double>&, std::vector<double>&);
-
-            Eigen::Vector3d transform(Eigen::Vector3d& point)
-            {
-                return (point + offset) / resolution;
-            }
-            
-            void interpolation(Eigen::Vector3d& p, int* coordinate, double* k)
-            {
-                coordinate[0] = p.x(); coordinate[1] = coordinate[0] + 1;
-                coordinate[2] = p.y(); coordinate[3] = coordinate[2] + 1;
-                coordinate[4] = p.z(); coordinate[5] = coordinate[4] + 1;
-                k[0] = p.x() - coordinate[0]; k[1] = coordinate[1] - p.x();
-                k[2] = p.y() - coordinate[2]; k[3] = coordinate[3] - p.y();
-                k[4] = p.z() - coordinate[4]; k[5] = coordinate[5] - p.z();
-            }
+            void transform(std::vector<double>&, std::vector<double>&) const;
     };
 }

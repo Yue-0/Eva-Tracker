@@ -140,12 +140,10 @@ namespace eva_tracker
                 rotate << cos, sin, 0, -sin, cos, 0, 0, 0, 1;
 
                 /* Observation penalty */
-                point = bezier->derivative(ts + t[1]) - states[1].head(3);
-                target = (*bezier)[ts + t[1]] - states[0].head(3);
                 g = w * lambda_d;
-                transform = rotate * target;
-                grad = fov->gradient(transform);
-                p = fov->max() - fov->get(transform);
+                target = (*bezier)[ts + t[1]] - states[0].head(3);
+                point = bezier->derivative(ts + t[1]) - states[1].head(3);
+                p = fov->max() - fov->value(rotate * target, &grad);
                 costs[1] += 0.5 * g * p * p * times[i];
                 dc.block(i * S, 0, S, 3) += g * times[i]
                                           * p * beta.col(0)
@@ -188,13 +186,12 @@ namespace eva_tracker
                         target = Eigen::Vector3d(
                             obstacle.x, obstacle.y, obstacle.z
                         ) - point;
-                        transform = rotate * target;
-                        if((p = esdf->get(transform)) > 0)
+                        if((p = esdf->value(rotate * target, &grad)) > 0)
                         {
                             phi += p;
-                            grad = esdf->gradient(transform);
+                            transform = dr * target;
                             grads.head(3) -= rotate.transpose() * grad;
-                            grads[3] += grad.dot((transform = dr * target));
+                            grads[3] += grad.dot(transform);
                             cos += grad.dot(
                                 transform - rotate * states[1].head(3)
                             );

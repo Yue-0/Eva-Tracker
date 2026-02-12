@@ -110,19 +110,24 @@ int main(int argc, char* argv[])
     plan.header.frame_id = world;
 
     /* Wait for transform */
+    Eigen::Vector3d target[2];
+    (target + 1)->setZero();
     tf::StampedTransform transform;
     tf::TransformListener listener;
     while(!listener.canTransform(world, frame, ros::Time(0)))
     {
-        if(states[0](0, 0) > 10)
-            ROS_WARN("Wait for transform...");
+        if((target + 1)->x() >= 1)
+            ROS_WARN(
+                "[%ds] Wait for transform...", 
+                static_cast<int>((target + 1)->x())
+            );
         listener.waitForTransform(
-            world, frame, ros::Time(0), ros::Duration(10)
+            world, frame, ros::Time(0), ros::Duration(1)
         );
-        states[0](0, 0) += 10;
+        (target + 1)->x() += 1;
     }
     ROS_INFO("Transform OK.");
-    states[0](0, 0) = 0;
+    (target + 1)->setZero();
 
     /* Publishers */
     ros::Publisher visualizer = nh.advertise<nav_msgs::Path>(
@@ -141,23 +146,23 @@ int main(int argc, char* argv[])
         "/tracker/odom", 1, 
         [&ok, &states](nav_msgs::Odometry::ConstPtr odom){
             ok = true;
-            states[0](0, 0) = odom->pose.pose.position.x;
-            states[0](1, 0) = odom->pose.pose.position.y;
-            states[0](2, 0) = odom->pose.pose.position.z;
-            states[0](3, 0) = tf::getYaw(odom->pose.pose.orientation);
+            states->col(0) << odom->pose.pose.position.x,
+                              odom->pose.pose.position.y,
+                              odom->pose.pose.position.z,
+                              tf::getYaw(odom->pose.pose.orientation);
         }
     );
 
     /* Subscribe the position of the target */
-    Eigen::Vector3d target[2]; target[1][0] = false;
+    (target + 1)->x() = false;
     ros::Subscriber perception = nh.subscribe<nav_msgs::Odometry>(
         "/target/odom", 1, [&target](nav_msgs::Odometry::ConstPtr odom){
-            target[0].x() = odom->pose.pose.position.x;
-            target[0].y() = odom->pose.pose.position.y;
-            target[0].z() = odom->pose.pose.position.z;
-            target[1].y() = odom->twist.twist.linear.y;
-            target[1].z() = odom->twist.twist.linear.z;
-            target[1][0] = true;
+            target->x() = odom->pose.pose.position.x;
+            target->y() = odom->pose.pose.position.y;
+            target->z() = odom->pose.pose.position.z;
+            (target + 1)->y() = odom->twist.twist.linear.y;
+            (target + 1)->z() = odom->twist.twist.linear.z;
+            (target + 1)->x() = true;
         }
     );
 
@@ -184,7 +189,7 @@ int main(int argc, char* argv[])
             pcl::PointCloud<pcl::PointXYZ> cloud;
             pcl::fromROSMsg(*msg, cloud);
             scan = map.update(
-                cloud, target, states[0].col(0).head(3), expansion, distance * 3
+                cloud, states->col(0).head(3), target, expansion, distance * 3
             );
 
             /* Publish point cloud */
@@ -211,31 +216,27 @@ int main(int argc, char* argv[])
                 bezier.control(1, p) = ctrl->poses[p].pose.position.y;
                 bezier.control(2, p) = ctrl->poses[p].pose.position.z;
             }
-            states[1].block(0, 1, 3, 1) = bezier.derivative(bezier.duration);
+            (states + 1)->col(1).head(3) = bezier.derivative(bezier.duration);
 
             /* Initial path genaration */
             ros::Time time = ros::Time::now();
             Eigen::MatrixXd path = initializer.generate(
-                map, states[0].col(0), bezier.trajectory()
+                map, states->col(0), bezier.trajectory()
             );
-            // double t = (ros::Time::now() - time).toSec();
+            double t = (ros::Time::now() - time).toSec();
 
             /* Trajectory optimization */
             if(optimizer.setup(path, states, &scan))
             {
-                // ROS_INFO(
-                //     "Generated new path.\tDuration: %fs", t
-                // );
-                // t = ros::Time::now().toSec();
+                ROS_DEBUG("Generated new path.\tDuration: %fs", t);
+                t = ros::Time::now().toSec();
                 optimizer.optimize(&trajectory);
-                // ROS_INFO(
-                //     "Optimization succeeded.\tDuration: %fs\n",
-                //     ros::Time::now().toSec() - t
-                // );
+                t = ros::Time::now().toSec() - t;
+                ROS_DEBUG("Optimization succeeded.\tDuration: %fs\n", t);
             }
             else
             {
-                // ROS_WARN("Planning failed."); 
+                ROS_DEBUG("Planning failed."); 
                 return;
             }
 
@@ -276,11 +277,14 @@ int main(int argc, char* argv[])
                                 ::TRAJECTORY_STATUS_READY;
 
             /* Get state */
-            Eigen::Vector4d pos, vel, acc, jerk, now = states[0].col(0);
+            Eigen::Vector4d pos, vel, acc, jerk, now = states->col(0);
             double t = (cmd.header.stamp - plan.header.stamp).toSec();
             if(t > trajectory.duration() || t < 0)
             {
-                pos = now; vel.setZero(); acc.setZero(); jerk.setZero();
+                pos = now;
+                vel.setZero();
+                acc.setZero();
+                jerk.setZero();
             }
             else
             {
@@ -288,11 +292,20 @@ int main(int argc, char* argv[])
                 vel = trajectory.vel(t);
                 acc = trajectory.acc(t);
                 jerk = trajectory.jerk(t);
+
+                // if(!initializer.visible(map, pos.head(3), now.head(3)))
+                // {
+                //     pos = now;
+                //     vel.setZero();
+                //     acc.setZero();
+                //     jerk.setZero();
+                // }
             }
-            states[0].col(1) = vel;
+            states->col(1) = vel;
 
             /* Publish control command */
             cmd.yaw = pos.w();
+            cmd.yaw_dot = vel.w();
             cmd.position.x = pos.x();
             cmd.position.y = pos.y();
             cmd.position.z = pos.z();
@@ -307,7 +320,6 @@ int main(int argc, char* argv[])
             cmd.jerk.x = jerk.x();
             cmd.jerk.y = jerk.y();
             cmd.jerk.z = jerk.z();
-            cmd.yaw_dot = vel.w();
             publisher.publish(cmd);
         }
     );

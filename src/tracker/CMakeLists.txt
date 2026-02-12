@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(tracker)
 
-set(REAL_WORLD TRUE)
+set(REAL_WORLD FALSE)
 
 # Compile as C++14, enable O3 optimization
 add_compile_options(-std=c++14)
@@ -21,6 +21,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 # System dependencies are found with CMake's conventions
+find_package(OpenMP REQUIRED)
 if(${REAL_WORLD})
     find_package(CUDA REQUIRED)
     find_package(OpenCV REQUIRED)
@@ -79,6 +80,7 @@ if(${REAL_WORLD})
         src/perception/monoloco.cpp
     )
 endif()
+target_compile_options(eva_tracker PRIVATE ${OpenMP_CXX_FLAGS})
 
 # Declare a C++ executables
 add_executable(tracking src/planner.cpp)
@@ -88,7 +90,7 @@ if(${REAL_WORLD})
 endif()
 
 # Specify libraries to link a library or executable target against
-target_link_libraries(tracking
+target_link_libraries(tracking PRIVATE ${OpenMP_CXX_LIBRARIES}
     bezier
     eva_tracker
     ${catkin_LIBRARIES}

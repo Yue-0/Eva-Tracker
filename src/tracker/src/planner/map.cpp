@@ -1,15 +1,14 @@
 /* @Author YueLin */
 
 #include "planner/map.hpp"
-#include "iostream"
 
 namespace eva_tracker
 {
     Map::~Map()
     {
-        for(int x = 0; x < size[X]; x++)
+        for(int x = 0; x < size.x(); x++)
         {
-            for(int y = 0; y < size[Y]; y++)
+            for(int y = 0; y < size.y(); y++)
             {
                 delete[] data[x][y];
                 delete[] flag[x][y];
@@ -24,44 +23,38 @@ namespace eva_tracker
         delete[] points;
     }
 
-    Map::Map(double l, double w, double h, double r)
+    Map::Map(double l, double w, double h, double r): resolution(r)
     {
         /* Initialize */
-        resolution = r;
-        r = 1 / resolution;
-        size[X] = std::round(l * r);
-        size[Y] = std::round(w * r);
-        size[Z] = std::round(h * r);
-        offset[X] = l * 0.5;
-        offset[Y] = w * 0.5;
-        offset[Z] = 0.0;
+        offset << l / 2, w / 2, 0;
+        size << std::round(l / r), std::round(w / r), std::round(h / r);
 
         /* Allocate memory */
-        data = new bool**[size[X]];
-        flag = new bool**[size[X]];
-        points = new pcl::PointXYZ**[size[X]];
-        for(int x = 0; x < size[X]; x++)
+        data = new bool**[size.x()];
+        flag = new bool**[size.x()];
+        points = new pcl::PointXYZ**[size.x()];
+        for(int x = 0; x < size.x(); x++)
         {
-            data[x] = new bool*[size[Y]];
-            flag[x] = new bool*[size[Y]];
-            points[x] = new pcl::PointXYZ*[size[Y]];
-            for(int y = 0; y < size[Y]; y++)
+            data[x] = new bool*[size.y()];
+            flag[x] = new bool*[size.y()];
+            points[x] = new pcl::PointXYZ*[size.y()];
+            for(int y = 0; y < size.y(); y++)
             {
-                data[x][y] = new bool[size[Z]];
-                flag[x][y] = new bool[size[Z]];
-                points[x][y] = new pcl::PointXYZ[size[Z]];
-                for(int z = 0; z < size[Z]; z++)
+                data[x][y] = new bool[size.z()];
+                flag[x][y] = new bool[size.z()];
+                points[x][y] = new pcl::PointXYZ[size.z()];
+                for(int z = 0; z < size.z(); z++)
                     data[x][y][z] = flag[x][y][z] = false;
             }
         }
     }
 
-    pcl::PointCloud<pcl::PointXYZ> Map::map()
+    pcl::PointCloud<pcl::PointXYZ> Map::map() const
     {
         pcl::PointCloud<pcl::PointXYZ> cloud;
-        for(int x = 0; x < size[X]; x++)
-            for(int y = 0; y < size[Y]; y++)
-                for(int z = 5; z < size[Z]; z++)
+        for(int x = 0; x < size.x(); x++)
+            for(int y = 0; y < size.y(); y++)
+                for(int z = 0; z < size.z(); z++)
                     if(flag[x][y][z])
                         cloud.push_back(points[x][y][z]);
         cloud.width = cloud.points.size();
@@ -71,9 +64,9 @@ namespace eva_tracker
     }
 
     pcl::PointCloud<pcl::PointXYZ> Map::update(
-        pcl::PointCloud<pcl::PointXYZ>& cloud, 
+        const pcl::PointCloud<pcl::PointXYZ>& cloud, 
+        const Eigen::Vector3d& center,
         Eigen::Vector3d* target,
-        Eigen::Vector3d center,
         double expansion,
         double range
     ){
@@ -84,12 +77,15 @@ namespace eva_tracker
         /* Clear map */
         int x1 = std::max((center.x() + offset.x() - range) * r, 0.);
         int y1 = std::max((center.y() + offset.y() - range) * r, 0.);
-        int x2 = std::min((center.x() + offset.x() + range) * r, size[X] - 1.);
-        int y2 = std::min((center.y() + offset.y() + range) * r, size[Y] - 1.);
+        int x2 = std::min((center.x() + offset.x() + range) * r, size.x() - 1.);
+        int y2 = std::min((center.y() + offset.y() + range) * r, size.y() - 1.);
+        #pragma omp parallel for collapse(2)
         for(int x = x1; x <= x2; x++)
-            for(int y = y1; y <= y2; y++)
-                for(int z = 0; z < size[Z]; z++)
-                    data[x][y][z] = flag[x][y][z] = false;
+        for(int y = y1; y <= y2; y++)
+        {
+            std::fill_n(data[x][y], size.z(), false);
+            std::fill_n(flag[x][y], size.z(), false);
+        }
 
         /* Filter */
         pcl::PointCloud<pcl::PointXYZ> filtered;
@@ -106,7 +102,7 @@ namespace eva_tracker
             int y0 = std::round((point.y + offset.y()) * r);
             int z0 = std::round((point.z + offset.z()) * r);
             if(std::min(std::min(x0, y0), z0) < 0 ||
-               x0 >= size[X] || y0 >= size[Y] || z0 >= size[Z])
+               x0 >= size.x() || y0 >= size.y() || z0 >= size.z())
                 continue;
             
             filtered.push_back(point);
@@ -126,15 +122,15 @@ namespace eva_tracker
             y1 = std::max(y0 - expansion, 0.);
             x1 = std::max(x0 - expansion, 0.);
             int z1 = std::max(z0 - expansion, 0.);
-            x2 = std::min(x0 + expansion, size[X] - 1.);
-            y2 = std::min(y0 + expansion, size[Y] - 1.);
-            int z2 = std::min(z0 + expansion, size[Z] - 1.);
+            x2 = std::min(x0 + expansion, size.x() - 1.);
+            y2 = std::min(y0 + expansion, size.y() - 1.);
+            int z2 = std::min(z0 + expansion, size.z() - 1.);
 
             /* Fill */
+            #pragma omp parallel for collapse(2)
             for(int x = x1; x <= x2; x++)
-                for(int y = y1; y <= y2; y++)
-                    for(int z = z1; z <= z2; z++)
-                        data[x][y][z] = true;
+            for(int y = y1; y <= y2; y++)
+                std::fill_n(data[x][y] + z1, z2 - z1 + 1, true);
         }
         
         return filtered;

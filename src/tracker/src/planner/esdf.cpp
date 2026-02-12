@@ -1,24 +1,25 @@
 /* @Author YueLin */
 
 #include <cmath>
-#include <limits>
 
 #include "planner/esdf.hpp"
 
-#define request(arr, size, type) \
-    new type**[size[X]];\
-    for(int x = 0; x < size[X]; x++){\
-        arr[x] = new type*[size[Y]];\
-        for(int y = 0; y < size[Y]; y++)\
-            arr[x][y] = new type[size[Z]];\
-    }
+#define request(array, size, type) new type**[size.x()];                       \
+for(int x = 0; x < size.x(); x++)                                              \
+{                                                                              \
+    array[x] = new type*[size.y()];                                            \
+    for(int y = 0; y < size.y(); y++)                                          \
+        array[x][y] = new type[size.z()];                                      \
+}
 
-#define release(arr, size) \
-    for(int x = 0; x < size[X]; x++){\
-        for(int y = 0; y < size[Y]; y++)\
-            delete[] arr[x][y];\
-        delete[] arr[x];\
-    }delete[] arr
+#define release(array, size)                                                   \
+for(int x = 0; x < size.x(); x++)                                              \
+{                                                                              \
+    for(int y = 0; y < size.y(); y++)                                          \
+        delete[] array[x][y];                                                  \
+    delete[] array[x];                                                         \
+}                                                                              \
+delete[] array
 
 namespace eva_tracker
 {
@@ -27,32 +28,29 @@ namespace eva_tracker
         release(esdf, size);
     }
 
-    ESDF::ESDF(double alpha, double beta, double distance, double r)
+    ESDF::ESDF(double alpha, double beta, double distance, double r):
+        resolution(r), maximum(-inf)
     {
         /* Initialize constants */
-        resolution = r;
-        r = 1 / resolution;
         beta = std::tan(beta / 2);
         alpha = std::tan(alpha / 2);
         offset << 0, distance * alpha, distance * beta;
-        size[X] = std::round(distance * r) + 2;
-        size[Y] = std::round(offset.y() * r * 2) + 2;
-        size[Z] = std::round(offset.z() * r * 2) + 2;
-
-        /* Initialize the maximum value */
-        maximum = -std::numeric_limits<double>::infinity();
+        size << std::round(distance / r),
+                std::round(2 * offset.y() / r),
+                std::round(2 * offset.z() / r);
+        size += Eigen::Vector3i::Constant(2);
 
         /* Construct the FoV's boundary */
-        float y0 = size[Y] / 2., z0 = size[Z] / 2.;
+        float y0 = size.y() / 2., z0 = size.z() / 2.;
         bool*** data = request(data, size, bool);
-        for(int x = 0; x < size[X]; x++)
+        for(int x = 0; x < size.x(); x++)
         {
-            bool d = x > distance * r;
+            bool d = x > distance / r;
             double ym = x * alpha, zm = x * beta;
-            for(int y = 0; y < size[Y]; y++)
+            for(int y = 0; y < size.y(); y++)
             {
                 bool a = d || std::fabs(y - y0) > ym;
-                for(int z = 0; z < size[Z]; z++)
+                for(int z = 0; z < size.z(); z++)
                     data[x][y][z] = a || std::fabs(z - z0) > zm;
             }
         }
@@ -62,31 +60,28 @@ namespace eva_tracker
         build(data); release(data, size);
     }
 
-    ESDF::ESDF(Eigen::Vector3d robot, double r, double expansion)
+    ESDF::ESDF(const Eigen::Vector3d& robot, double r, double expansion):
+        resolution(r), maximum(-inf)
     {
         /* Initialize constants */
-        resolution = r; r = 1 / r;
         offset = robot * (expansion / 2);
-        size[X] = std::round(robot.x() * r * expansion);
-        size[Y] = std::round(robot.y() * r * expansion);
-        size[Z] = std::round(robot.z() * r * expansion);
-
-        /* Initialize the maximum value */
-        maximum = -std::numeric_limits<double>::infinity();
+        size << std::round(robot.x() * expansion / r),
+                std::round(robot.y() * expansion / r),
+                std::round(robot.z() * expansion / r);
 
         /* Construct the robot's boundary */
-        Eigen::Vector3d expand = 0.5 * (expansion - 1) * r * robot;
+        Eigen::Vector3d expand = (expansion - 1) / (2 * r) * robot;
         bool*** data = request(data, size, bool);
-        for(int x = 0; x < size[X]; x++)
-            for(int y = 0; y < size[Y]; y++)
-                for(int z = 0; z < size[Z]; z++)
+        for(int x = 0; x < size.x(); x++)
+            for(int y = 0; y < size.y(); y++)
+                for(int z = 0; z < size.z(); z++)
                     data[x][y][z] = !(
                         x - expand.x() > 0 && 
                         y - expand.y() > 0 && 
                         z - expand.z() > 0 &&
-                        x + expand.x() < size[X] - 1 &&
-                        y + expand.y() < size[Y] - 1 &&
-                        z + expand.z() < size[Z] - 1
+                        x + expand.x() < size.x() - 1 &&
+                        y + expand.y() < size.y() - 1 &&
+                        z + expand.z() < size.z() - 1
                     );
         
         /* Build the ESDF and release memory */
@@ -97,13 +92,13 @@ namespace eva_tracker
     Eigen::Vector3d ESDF::argmax()
     {
         /* Initialize the maximum value */
-        maximum = -std::numeric_limits<double>::infinity();
+        maximum = -inf;
         
         /* Find the maximum value */
         int x0 = 0, y0 = 0, z0 = 0;
-        for(int x = 0; x < size[X]; x++)
-            for(int y = 0; y < size[Y]; y++)
-                for(int z = 0; z < size[Z]; z++)
+        for(int x = 0; x < size.x(); x++)
+            for(int y = 0; y < size.y(); y++)
+                for(int z = 0; z < size.z(); z++)
                     if(esdf[x][y][z] > maximum)
                         maximum = esdf[x0 = x][y0 = y][z0 = z];
         
@@ -111,146 +106,109 @@ namespace eva_tracker
         return resolution * Eigen::Vector3d(x0, y0, z0);
     }
 
-    Eigen::Vector3d ESDF::gradient(Eigen::Vector3d point)
+    void ESDF::build(bool*** data)
+    {
+        /* Initialize */
+        std::vector<double> distance, f;
+        for(int x = 0; x < size.x(); x++)
+            for(int y = 0; y < size.y(); y++)
+                for(int z = 0; z < size.z(); z++)
+                    esdf[x][y][z] = 0;
+
+        /* Calculate the distance in the z direction */
+        distance.resize(size.z());
+        for(int x = 0; x < size.x(); x++)
+            for(int y = 0; y < size.y(); y++)
+            {
+                for(int z = 0; z < size.z(); z++)
+                    distance[z] = data[x][y][z]? 0: inf;
+                for(int k = 1; k < size.z(); k++)
+                    distance[k] = std::min(distance[k], distance[k - 1] + 1);
+                for(int k = size.z() - 2; k >= 0; k--)
+                    distance[k] = std::min(distance[k], distance[k + 1] + 1);
+                for(int k = 0; k < size.z(); k++)
+                    distance[k] *= distance[k];
+                for(int z = 0; z < size.z(); z++)
+                    esdf[x][y][z] = distance[z];
+            }
+        
+        /* Calculate the distance in the y direction */
+        f.resize(size.y());
+        distance.resize(size.y());
+        for(int x = 0; x < size.x(); x++)
+            for(int z = 0; z < size.z(); z++)
+            {
+                for(int y = 0; y < size.y(); y++)
+                    f[y] = esdf[x][y][z];
+                transform(distance, f);
+                for(int y = 0; y < size.y(); y++)
+                    esdf[x][y][z] = distance[y];
+            }
+
+        /* Calculate the distance in the x direction */
+        f.resize(size.x());
+        distance.resize(size.x());
+        for(int y = 0; y < size.y(); y++)
+            for(int z = 0; z < size.z(); z++)
+            {
+                for(int x = 0; x < size.x(); x++)
+                    f[x] = esdf[x][y][z];
+                transform(distance, f);
+                for(int x = 0; x < size.x(); x++)
+                    esdf[x][y][z] = distance[x];
+            }
+
+        /* Map the result to Euclidean distance */
+        for(int x = 0; x < size.x(); x++)
+            for(int y = 0; y < size.y(); y++)
+                for(int z = 0; z < size.z(); z++)
+                    esdf[x][y][z] = resolution * std::sqrt(esdf[x][y][z]);
+    }
+
+    double ESDF::value(Eigen::Vector3d point, Eigen::Vector3d* grad) const
     {
         /* Initialize gradient */
-        Eigen::Vector3d g = Eigen::Vector3d::Zero();
+        if(grad != nullptr)
+            grad->setZero();
 
-        /* Coordinate transform */
-        point = transform(point);
-
-        /* Get neighboring points */
-        int coordinate[6];
-        double weights[6];
-        interpolation(point, coordinate, weights);
+        /* Coordinate transformation */
+        point += offset;
+        point /= resolution;
 
         /* Bounds checking */
-        int* x = coordinate;
-        int* y = coordinate + 2;
-        int* z = coordinate + 4;
-        if(x[0] < 0 || x[0] >= size[X] ||
-           x[1] < 0 || x[1] >= size[X] ||
-           y[0] < 0 || y[0] >= size[Y] ||
-           y[1] < 0 || y[1] >= size[Y] ||
-           z[0] < 0 || z[0] >= size[Z] ||
-           z[1] < 0 || z[1] >= size[Z]) return g;
-        
-        /* Linear interpolation */
-        double d = 0;
-        double* u = weights;
-        double* v = weights + 2;
-        double* w = weights + 4;
+        if(point.minCoeff() < 0 || (size - point.cast<int>()).minCoeff() <= 1)
+            return 0;
+
+        /* Get neighboring points */
+        int x[2], y[2], z[2];
+        double u[2], v[2], w[2];
+        *x = point.x(); *(x + 1) = *x + 1; 
+        *y = point.y(); *(y + 1) = *y + 1;
+        *z = point.z(); *(z + 1) = *z + 1;
+        *u = point.x() - *x; *(u + 1) = 1 - *u;
+        *v = point.y() - *y; *(v + 1) = 1 - *v;
+        *w = point.z() - *z; *(w + 1) = 1 - *w;
+
+        /* Cubic Linear interpolation */
+        double d, s = 0;
         for(int i, j, k, n = 0; n < 8; n++)
         {
             k = n & 1;
             j = (n >> 1) & 1;
             i = (n >> 2) & 1;
             d = esdf[x[!i]][y[!j]][z[!k]];
-            g.x() += v[j] * w[k] * d * (i? -1: 1);
-            g.y() += u[i] * w[k] * d * (j? -1: 1);
-            g.z() += u[i] * v[j] * d * (k? -1: 1);
+            if(grad != nullptr)
+            {
+                grad->x() += v[j] * w[k] * d * (i? -1: 1);
+                grad->y() += u[i] * w[k] * d * (j? -1: 1);
+                grad->z() += u[i] * v[j] * d * (k? -1: 1);
+            }
+            s += u[i] * v[j] * w[k] * d;
         }
-        return g;
+        return s;
     }
 
-    void ESDF::build(bool*** data)
-    {
-        /* Initialize */
-        const double INF = std::numeric_limits<double>::infinity();
-        std::vector<double> distance, f;
-        for(int x = 0; x < size[X]; x++)
-            for(int y = 0; y < size[Y]; y++)
-                for(int z = 0; z < size[Z]; z++)
-                    esdf[x][y][z] = 0;
-
-        /* Calculate the distance in the z direction */
-        distance.resize(size[Z]);
-        for(int x = 0; x < size[X]; x++)
-            for(int y = 0; y < size[Y]; y++)
-            {
-                for(int z = 0; z < size[Z]; z++)
-                    distance[z] = data[x][y][z]? 0: INF;
-                dt(distance);
-                for(int z = 0; z < size[Z]; z++)
-                    esdf[x][y][z] = distance[z];
-            }
-        
-        /* Calculate the distance in the y direction */
-        f.resize(size[Y]);
-        distance.resize(size[Y]);
-        for(int x = 0; x < size[X]; x++)
-            for(int z = 0; z < size[Z]; z++)
-            {
-                for(int y = 0; y < size[Y]; y++)
-                    f[y] = esdf[x][y][z];
-                dt(distance, f);
-                for(int y = 0; y < size[Y]; y++)
-                    esdf[x][y][z] = distance[y];
-            }
-
-        /* Calculate the distance in the x direction */
-        f.resize(size[X]);
-        distance.resize(size[X]);
-        for(int y = 0; y < size[Y]; y++)
-            for(int z = 0; z < size[Z]; z++)
-            {
-                for(int x = 0; x < size[X]; x++)
-                    f[x] = esdf[x][y][z];
-                dt(distance, f);
-                for(int x = 0; x < size[X]; x++)
-                    esdf[x][y][z] = distance[x];
-            }
-
-        /* Map the result to Euclidean distance */
-        for(int x = 0; x < size[X]; x++)
-            for(int y = 0; y < size[Y]; y++)
-                for(int z = 0; z < size[Z]; z++)
-                    esdf[x][y][z] = resolution * std::sqrt(esdf[x][y][z]);
-    }
-
-    double ESDF::value(Eigen::Vector3d point)
-    {
-        /* Get neighboring points */
-        int coordinate[6];
-        double weights[6];
-        interpolation(point, coordinate, weights);
-
-        /* Bounds checking */
-        int* x = coordinate;
-        int* y = coordinate + 2;
-        int* z = coordinate + 4;
-        if(x[0] < 0 || x[0] >= size[X] ||
-           x[1] < 0 || x[1] >= size[X] ||
-           y[0] < 0 || y[0] >= size[Y] ||
-           y[1] < 0 || y[1] >= size[Y] ||
-           z[0] < 0 || z[0] >= size[Z] ||
-           z[1] < 0 || z[1] >= size[Z]) return 0;
-
-        /* Linear interpolation */
-        double d = 0;
-        double* u = weights;
-        double* v = weights + 2;
-        double* w = weights + 4;
-        for(int i, j, k, n = 0; n < 8; n++)
-        {
-            i = n >> 2; j = (n >> 1) & 1; k = n & 1;
-            d += u[i] * v[j] * w[k] * esdf[x[!i]][y[!j]][z[!k]];
-        }
-        return d;
-    }
-
-    void ESDF::dt(std::vector<double>& dp)
-    {
-        const int len = dp.size();
-        for(int k = 1; k < len; k++)
-            dp[k] = std::min(dp[k], dp[k - 1] + 1);
-        for(int k = len - 2; k >= 0; k--)
-            dp[k] = std::min(dp[k], dp[k + 1] + 1);
-        for(int k = 0; k < len; k++)
-            dp[k] *= dp[k];
-    }
-
-    void ESDF::dt(std::vector<double>& d, std::vector<double>& f)
+    void ESDF::transform(std::vector<double>& d, std::vector<double>& f) const
     {
         /* Initialize */
         int k, q;
@@ -258,11 +216,10 @@ namespace eva_tracker
         int len = f.size();
         int* v = new int[len];
         double* z = new double[len + 1];
-        const double INF = std::numeric_limits<double>::infinity();
         
         /* Compute lower envelope */
         v[0] = 0;
-        z[0] = -(z[1] = INF);
+        z[0] = -(z[1] = inf);
         for(k = q = 1; q < len; q++)
         {
             do {k--;}
@@ -271,7 +228,7 @@ namespace eva_tracker
             ) / (2 * (q - v[k]))));
             v[++k] = q;
             z[k++] = s;
-            z[k] = INF;
+            z[k] = inf;
         }
 
         /* Fill in values of distance transform */
