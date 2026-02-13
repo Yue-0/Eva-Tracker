@@ -88,7 +88,7 @@ int main(int argc, char* argv[])
 
             /* Get RGB image */
             cv::Mat color(
-                frames->depth.height, frames->depth.width,
+                frames->color.height, frames->color.width,
                 CV_8UC3, (void*)frames->color.data.data()
             );
 
@@ -111,12 +111,12 @@ int main(int argc, char* argv[])
                 );
                 depth.convertTo(depth, CV_32FC1, frames->scale);
                 monoloco.process(
-                    detections[0].skeleton,
+                    detections.front().skeleton,
                     frames->fx, frames->fy,
                     frames->cx, frames->cy
                 );
                 publish = server.push(yolo.solve(
-                    depth, detections[0],
+                    depth, detections.front(),
                     frames->fx, frames->fy,
                     frames->cx, frames->cy
                 ), lost);

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(tracker)
 
-set(REAL_WORLD FALSE)
+set(REAL_WORLD TRUE)
 
 # Compile as C++14, enable O3 optimization
 add_compile_options(-std=c++14)

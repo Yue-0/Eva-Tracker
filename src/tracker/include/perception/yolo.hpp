@@ -37,8 +37,8 @@ namespace eva_tracker
             Eigen::Matrix<float, SKELETON, 3> skeleton;
         
         public:
-            Person(cv::Rect2d rect, float score, 
-                   std::vector<cv::Point3f> points);
+            Person(const cv::Rect2d& rect, float score, 
+                   const std::vector<cv::Point3f>& points);
         
         /* For visualization */
         private:
@@ -138,14 +138,14 @@ namespace eva_tracker
         
         public:
             ~YOLOv11Pose();
-            YOLOv11Pose(std::string path);
+            YOLOv11Pose(const std::string& path);
             Eigen::Vector3f solve(const cv::Mat& depth, 
                                   const Person& person, 
                                   float fx, float fy, float cx, float cy);
             std::vector<Person> detect(const cv::Mat& img, double threshold, 
                                        bool single, double nms);
-            void visualize(cv::Mat& image, std::vector<Person>& objects, 
-                           bool boxes, bool keypoints, bool lines);
+            void visualize(cv::Mat& image, const std::vector<Person>& objects, 
+                           bool boxes, bool keypoints, bool lines) const;
         
         private:
             inline void inference();

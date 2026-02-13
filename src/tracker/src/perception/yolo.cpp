@@ -9,8 +9,8 @@
 
 namespace eva_tracker
 {
-    Person::Person(cv::Rect2d rect, float score, 
-                   std::vector<cv::Point3f> points): confidence(score)
+    Person::Person(const cv::Rect2d& rect, float score, 
+                   const std::vector<cv::Point3f>& points): confidence(score)
     {
         box.x = std::round(rect.x);
         box.y = std::round(rect.y);
@@ -63,7 +63,7 @@ namespace eva_tracker
         delete context;
     }
 
-    YOLOv11Pose::YOLOv11Pose(std::string path)
+    YOLOv11Pose::YOLOv11Pose(const std::string& path)
     {
         /* Initialize */
         size_t size{0};
@@ -346,10 +346,11 @@ namespace eva_tracker
         return objects;
     }
 
-    void YOLOv11Pose::visualize(cv::Mat& image, std::vector<Person>& objects,
-                                bool boxes, bool keypoints, bool lines)
+    void YOLOv11Pose::visualize(cv::Mat& image, 
+                                const std::vector<Person>& objects,
+                                bool boxes, bool keypoints, bool lines) const
     {
-        for(Person person: objects)
+        for(const Person& person: objects)
             person.visualize(image, 0.25, boxes, keypoints, lines);
     }
 }
