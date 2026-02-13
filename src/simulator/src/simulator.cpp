@@ -63,10 +63,11 @@ int main(int argc, char* argv[])
     map.expand(std::max(env.target.length, env.target.width) / 2);
     ros::Timer once = nh.createTimer(
         ros::Duration(nh.param("map/publish_time", 1)),
-        [&mapper, &map, &frame](const ros::TimerEvent&){
+        [&mapper, &map, &frame](const ros::TimerEvent& event){
             mapper.publish(simulator::map2msg(map, *frame));
-            ROS_INFO("Map initialized.");
-        }, true
+            if(event.last_real == ros::Time(0))
+                ROS_INFO("Map initialized.");
+        }
     );
     map.distance();
 
