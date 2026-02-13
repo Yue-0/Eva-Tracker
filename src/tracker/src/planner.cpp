@@ -11,7 +11,7 @@
 
 #include "quadrotor_msgs/PositionCommand.h"
 
-#include "planner/path.hpp"
+#include "planner/plan.hpp"
 #include "planner/optim.hpp"
 
 const double PI = std::acos(-1);
@@ -75,8 +75,8 @@ int main(int argc, char* argv[])
 
     /* Initialize path generator */
     const double distance = fov.argmax().x();
-    eva_tracker::PathGenerator initializer(
-        distance, nh.param("delta_theta", 1.) * PI / 180.
+    eva_tracker::PathPlanner planner(
+        &map, distance, nh.param("delta_theta", 1.) * PI / 180.
     );
     ROS_INFO("Optimial observation distance: %f", distance);
 
@@ -203,7 +203,7 @@ int main(int argc, char* argv[])
     /* Subscribe trajectory prediction result */
     ros::Subscriber tracking = nh.subscribe<nav_msgs::Path>(
         "/target/bezier", 1,  [
-            &ok, &bezier, &initializer, &map, &states, &optimizer,
+            &ok, &bezier, &planner, &map, &states, &optimizer,
             &trajectory, &scan, &plan, &visualizer
         ](nav_msgs::Path::ConstPtr ctrl){
             if(!ok) return;
@@ -220,8 +220,8 @@ int main(int argc, char* argv[])
 
             /* Initial path genaration */
             ros::Time time = ros::Time::now();
-            Eigen::MatrixXd path = initializer.generate(
-                map, states->col(0), bezier.trajectory()
+            Eigen::MatrixXd path = planner.plan(
+                states->col(0), bezier.trajectory()
             );
             double t = (ros::Time::now() - time).toSec();
 
@@ -261,68 +261,65 @@ int main(int argc, char* argv[])
     );
 
     /* Velocity controller */
-    ros::Timer controller = nh.createTimer(
-        ros::Duration(dt), [
-            &ok, &start, &plan, &initializer,
-            &map, &trajectory, &states, &publisher
-        ](const ros::TimerEvent&){
-            if(!(ok && start)) return;
+    ros::Timer controller = nh.createTimer(ros::Duration(dt), [
+        &ok, &start, &plan, &planner, &trajectory, &states, &publisher
+    ](const ros::TimerEvent&){
+        if(!(ok && start)) return;
 
-            /* Initialize message */
-            quadrotor_msgs::PositionCommand cmd;
-            cmd.header.stamp = ros::Time::now();
-            cmd.header.frame_id = plan.header.frame_id;
-            cmd.trajectory_flag = quadrotor_msgs
-                                ::PositionCommand
-                                ::TRAJECTORY_STATUS_READY;
+        /* Initialize message */
+        quadrotor_msgs::PositionCommand cmd;
+        cmd.header.stamp = ros::Time::now();
+        cmd.header.frame_id = plan.header.frame_id;
+        cmd.trajectory_flag = quadrotor_msgs
+                            ::PositionCommand
+                            ::TRAJECTORY_STATUS_READY;
 
-            /* Get state */
-            Eigen::Vector4d pos, vel, acc, jerk, now = states->col(0);
-            double t = (cmd.header.stamp - plan.header.stamp).toSec();
-            if(t > trajectory.duration() || t < 0)
-            {
-                pos = now;
-                vel.setZero();
-                acc.setZero();
-                jerk.setZero();
-            }
-            else
-            {
-                pos = trajectory.pos(t);
-                vel = trajectory.vel(t);
-                acc = trajectory.acc(t);
-                jerk = trajectory.jerk(t);
-
-                // if(!initializer.visible(map, pos.head(3), now.head(3)))
-                // {
-                //     pos = now;
-                //     vel.setZero();
-                //     acc.setZero();
-                //     jerk.setZero();
-                // }
-            }
-            states->col(1) = vel;
-
-            /* Publish control command */
-            cmd.yaw = pos.w();
-            cmd.yaw_dot = vel.w();
-            cmd.position.x = pos.x();
-            cmd.position.y = pos.y();
-            cmd.position.z = pos.z();
-            cmd.velocity.x = vel.x();
-            cmd.velocity.y = vel.y();
-            cmd.velocity.z = vel.z();
-            cmd.acceleration.x = acc.x();
-            cmd.acceleration.y = acc.y();
-            cmd.acceleration.z = acc.z();
-            if(cmd.yaw > PI || cmd.yaw <= -PI)
-                cmd.yaw += 2 * std::floor(0.5 - cmd.yaw / (2 * PI)) * PI;
-            cmd.jerk.x = jerk.x();
-            cmd.jerk.y = jerk.y();
-            cmd.jerk.z = jerk.z();
-            publisher.publish(cmd);
+        /* Get state */
+        Eigen::Vector4d pos, vel, acc, jerk, now = states->col(0);
+        double t = (cmd.header.stamp - plan.header.stamp).toSec();
+        if(t > trajectory.duration() || t < 0)
+        {
+            pos = now;
+            vel.setZero();
+            acc.setZero();
+            jerk.setZero();
         }
-    );
+        else
+        {
+            pos = trajectory.pos(t);
+            vel = trajectory.vel(t);
+            acc = trajectory.acc(t);
+            jerk = trajectory.jerk(t);
+
+            // if(!planner.visible(pos.head(3), now.head(3)))
+            // {
+            //     pos = now;
+            //     vel.setZero();
+            //     acc.setZero();
+            //     jerk.setZero();
+            // }
+        }
+        states->col(1) = vel;
+
+        /* Publish control command */
+        cmd.yaw = pos.w();
+        cmd.yaw_dot = vel.w();
+        cmd.position.x = pos.x();
+        cmd.position.y = pos.y();
+        cmd.position.z = pos.z();
+        cmd.velocity.x = vel.x();
+        cmd.velocity.y = vel.y();
+        cmd.velocity.z = vel.z();
+        cmd.acceleration.x = acc.x();
+        cmd.acceleration.y = acc.y();
+        cmd.acceleration.z = acc.z();
+        if(cmd.yaw > PI || cmd.yaw <= -PI)
+            cmd.yaw += 2 * std::floor(0.5 - cmd.yaw / (2 * PI)) * PI;
+        cmd.jerk.x = jerk.x();
+        cmd.jerk.y = jerk.y();
+        cmd.jerk.z = jerk.z();
+        publisher.publish(cmd);
+    });
 
     /* Main loop */
     return spinner.spin(), 0;
