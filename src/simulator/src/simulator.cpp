@@ -243,12 +243,8 @@ int main(int argc, char* argv[])
 
     /* Subscribers */
     ros::Subscriber command = nh.subscribe<quadrotor_msgs::PositionCommand>(
-        "/tracker/cmd", 1,
-        [&env](quadrotor_msgs::PositionCommand::ConstPtr cmd){
-            env.tracker.pose.w() = cmd->yaw;
-            env.tracker.vel.x() = cmd->velocity.x;
-            env.tracker.vel.y() = cmd->velocity.y;
-            env.tracker.vel.z() = cmd->velocity.z;
+        "/tracker/cmd", 1, [&env](quadrotor_msgs::PositionCommand::ConstPtr c){
+            env.tracker.control(c);
         }
     );
     bool benchmarking = false;
@@ -264,10 +260,10 @@ int main(int argc, char* argv[])
     );
     // ros::Subscriber replay = nh.subscribe<nav_msgs::Odometry>(
     //     "/tracker/odom/replay", 1, [&env](nav_msgs::Odometry::ConstPtr odom){
-    //         env.tracker.pose.x = odom->pose.pose.position.x;
-    //         env.tracker.pose.y = odom->pose.pose.position.y;
-    //         env.tracker.pose.z = odom->pose.pose.position.z;
-    //         env.tracker.pose.yaw = tf::getYaw(odom->pose.pose.orientation);
+    //         env.tracker.pose << odom->pose.pose.position.x,
+    //                             odom->pose.pose.position.y,
+    //                             odom->pose.pose.position.z,
+    //                             tf::getYaw(odom->pose.pose.orientation);
     //     }
     // );
 
