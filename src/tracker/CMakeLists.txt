@@ -60,18 +60,12 @@ else()
 endif()
 
 # Declare C++ libraries
-add_library(bezier
-    src/predictor/bezier.cpp
-)
 add_library(eva_tracker
     src/planner/map.cpp
     src/planner/esdf.cpp
     src/planner/plan.cpp
     src/planner/minco.cpp
     src/planner/optimizer.cpp
-)
-add_library(predictor
-    src/predictor/predictor.cpp
 )
 if(${REAL_WORLD})
     add_library(detection
@@ -91,18 +85,14 @@ endif()
 
 # Specify libraries to link a library or executable target against
 target_link_libraries(tracking PRIVATE ${OpenMP_CXX_LIBRARIES}
-    bezier
     eva_tracker
     ${catkin_LIBRARIES}
 )
 target_link_libraries(prediction
-    bezier
-    predictor
     ${catkin_LIBRARIES}
 )
 if(${REAL_WORLD})
     target_link_libraries(perception
-        bezier
         detection
         ${catkin_LIBRARIES}
         ${OpenCV_LIBRARIES}
