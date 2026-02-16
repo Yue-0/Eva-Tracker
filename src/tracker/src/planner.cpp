@@ -33,7 +33,7 @@ int main(int argc, char* argv[])
     const double dt = 1 / hz;
 
     /* State of the tracker */
-    Eigen::MatrixXd states[2] = {
+    Eigen::Matrix4Xd states[2] = {
         Eigen::Matrix4Xd::Zero(4, 3),
         Eigen::Matrix4Xd::Zero(4, 3)
     };
@@ -66,12 +66,12 @@ int main(int argc, char* argv[])
     );
 
     /* Initialize trajectories */
-    eva_tracker::Minco minco;
     eva_tracker::Bezier bezier(
         1 + 2 * nh.param("m", 2), 
         nh.param("tau", 0.5)
     );
-    eva_tracker::Trajectory trajectory;
+    eva_tracker::Minco<4> minco(nh.param("s", 3));
+    eva_tracker::Trajectory trajectory(minco.order());
 
     /* Initialize path generator */
     const double distance = fov.argmax().x();
@@ -220,7 +220,7 @@ int main(int argc, char* argv[])
 
             /* Initial path genaration */
             ros::Time time = ros::Time::now();
-            Eigen::MatrixXd path = planner.plan(
+            Eigen::Matrix4Xd path = planner.plan(
                 states->col(0), bezier.trajectory()
             );
             double t = (ros::Time::now() - time).toSec();

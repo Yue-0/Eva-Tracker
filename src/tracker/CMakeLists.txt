@@ -64,7 +64,6 @@ add_library(eva_tracker
     src/planner/map.cpp
     src/planner/esdf.cpp
     src/planner/plan.cpp
-    src/planner/minco.cpp
     src/planner/optimizer.cpp
 )
 if(${REAL_WORLD})

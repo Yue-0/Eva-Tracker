@@ -21,8 +21,8 @@ namespace eva_tracker
             Eigen::VectorXd costs;
 
             /* Objects */
-            Minco* minco;
             Bezier* bezier;
+            Minco<4>* minco;
             ESDF *robot, *fov;
             pcl::PointCloud<pcl::PointXYZ>* cloud;
 
@@ -31,23 +31,25 @@ namespace eva_tracker
             double lambda_p, lambda_o, lambda_d, lambda_a, gamma, weight;
 
             /* Vectors */
-            Eigen::MatrixXd points, dc, dp;
-            Eigen::VectorXd tau, times, dt, dv, endpoint;
+            Eigen::MatrixX4d dc;
+            Eigen::Matrix4Xd points, dp;
+            Eigen::VectorXd tau, times, dt, dv;
+            Eigen::Vector4d endpoint;
         
         private:
             lbfgs::lbfgs_parameter_t params;
         
         public:
             Optimizer(int, int,
-                      Minco*, Bezier*, ESDF*, ESDF*,
+                      Minco<4>*, Bezier*, ESDF*, ESDF*,
                       double, double, double, int,
                       double, double, double, double, double, double,
                       double, double, double, double, double, double);
         
         public:
             double optimize(Trajectory*);
-            bool setup(Eigen::MatrixXd&,
-                       Eigen::MatrixXd*,
+            bool setup(Eigen::Matrix4Xd&,
+                       Eigen::Matrix4Xd*,
                        pcl::PointCloud<pcl::PointXYZ>*);
 
         private:
@@ -55,7 +57,7 @@ namespace eva_tracker
             inline void regularization();
             inline void forward(Eigen::VectorXd&,
                                 Eigen::VectorXd&,
-                                Eigen::MatrixXd&);
+                                Eigen::Matrix4Xd&);
             inline void backward(const Eigen::VectorXd&);
 
             static double f(void*, const Eigen::VectorXd&, Eigen::VectorXd&);

@@ -4,7 +4,7 @@
 
 namespace eva_tracker
 {
-    Optimizer::Optimizer(int k, int n, Minco* path, Bezier* b, 
+    Optimizer::Optimizer(int k, int n, Minco<4>* path, Bezier* b, 
                          ESDF* rc, ESDF* camera, double tau, 
                          double delta, double step, int mem,
                          double vh, double vv, double va,
@@ -12,7 +12,7 @@ namespace eva_tracker
                          double p, double o, double d,
                          double a, double r, double w):
         kappa(k), duration(tau),
-        minco(path), bezier(b),
+        bezier(b), minco(path),
         robot(rc), fov(camera),
         vh2(vh * vh), vv2(vv * vv), va2(va * va), 
         ah2(ah * ah), av2(av * av), aa2(aa * aa),
@@ -29,7 +29,7 @@ namespace eva_tracker
     double Optimizer::optimize(Trajectory* trajectory)
     {
         /* Initialize */
-        Eigen::VectorXd var(minco->pieces() * (minco->dim() + 1));
+        Eigen::VectorXd var(minco->pieces() * (minco->dimension() + 1));
         forward(var, tau, points);
 
         /* Optimization */
@@ -51,13 +51,13 @@ namespace eva_tracker
 
         /* Set the optimal parameters of MINCO */
         minco->set(endpoint);
-        minco->set(points, times);
+        minco->set(times, points);
         minco->get(trajectory);
         return cost;
     }
 
-    bool Optimizer::setup(Eigen::MatrixXd& path,
-                          Eigen::MatrixXd* states,
+    bool Optimizer::setup(Eigen::Matrix4Xd& path,
+                          Eigen::Matrix4Xd* states,
                           pcl::PointCloud<pcl::PointXYZ>* world)
     {
         int n = path.cols();
@@ -68,7 +68,7 @@ namespace eva_tracker
         /* Initialize points and times */
         states[0].col(0) = path.col(0);
         states[1].col(0) = path.col(n);
-        points.resize(minco->dim(), n - 1);
+        points.resize(minco->dimension(), n - 1);
         for(int p = 1; p < n; p++)
             points.col(p - 1) = path.col(p);
         times = duration * Eigen::VectorXd::Ones(n);
@@ -80,7 +80,7 @@ namespace eva_tracker
         dc.resize(n-- * (minco->order() + 1) * 2, 4);
 
         /* Adjust yaw angle */
-        int yaw = minco->dim() - 1;
+        int yaw = minco->dimension() - 1;
         double theta = path(yaw, 0);
         for(int p = 0; p < n; p++)
         {
@@ -97,7 +97,7 @@ namespace eva_tracker
         
         /* Initialize MINCO trajectory */
         endpoint = states[1].col(0);
-        minco->initialize(states[0], states[1], n + 1);
+        minco->initialize(n + 1, states);
         minco->diffeomorphism(times, tau, false);
         return true;
     }
@@ -130,7 +130,7 @@ namespace eva_tracker
                 for(int order = 0; order <= 3; order++)
                 {
                     for(int div = 0, s = order; s < S; div++, s++)
-                        beta(s, order) = t[div] * minco->div(s, div);
+                        beta(s, order) = t[div] * factorial(s, div);
                     states[order] = c * beta.col(order);
                 }
                 sin = std::sin(states[0].w());
@@ -295,7 +295,7 @@ namespace eva_tracker
 
     inline void Optimizer::forward(Eigen::VectorXd& data,
                                    Eigen::VectorXd& vector,
-                                   Eigen::MatrixXd& matrix)
+                                   Eigen::Matrix4Xd& matrix)
     {
         const int n = minco->pieces();
         data.head(n) = vector;
@@ -333,7 +333,7 @@ namespace eva_tracker
 
         /* Initialize MINCO trajectory */
         self->minco->set(self->endpoint);
-        self->minco->set(self->points, self->times);
+        self->minco->set(self->times, self->points);
 
         /* Calculate trajectory cost */
         self->costs[3] = self->minco->cost(self->dc, self->dt, self->weight);
