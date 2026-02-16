@@ -4,7 +4,7 @@ __Eva-Tracker__ is an ESDF-update-free, Visibility-Aware trajectory planning fra
 
 ## Paper
 
-__Eva-Tracker: ESDF-update-free, Visibility-aware Planning with Target Reacquisition for Robust Aerial Tracking__. Accepted by __ICRA 2026__. The full paper and video will be published soon.
+[__Eva-Tracker: ESDF-update-free, Visibility-aware Planning with Target Reacquisition for Robust Aerial Tracking__](https://arxiv.org/abs/2602.12549). Accepted by __ICRA 2026__.
 
 Author: [Yue Lin](https://github.com/Yue-0), Yang Liu, Dong Wang, Huchuan Lu.
 
