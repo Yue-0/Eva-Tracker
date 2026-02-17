@@ -28,17 +28,15 @@ if(${REAL_WORLD})
 endif()
 
 # Generate message
-if(${REAL_WORLD})
-    add_message_files(
-        FILES
-        Camera.msg
-    )
-    generate_messages(
-        DEPENDENCIES
-        sensor_msgs
-        std_msgs
-    )
-endif()
+add_message_files(
+    FILES
+    Camera.msg
+)
+generate_messages(
+    DEPENDENCIES
+    sensor_msgs
+    std_msgs
+)
 
 # Catkin specific configuration
 catkin_package()
@@ -64,7 +62,7 @@ add_library(eva_tracker
     src/planner/map.cpp
     src/planner/esdf.cpp
     src/planner/plan.cpp
-    src/planner/optimizer.cpp
+    src/planner/optim.cpp
 )
 if(${REAL_WORLD})
     add_library(detection

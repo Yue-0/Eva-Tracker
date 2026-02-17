@@ -82,12 +82,8 @@ int main(int argc, char* argv[])
 
     /* Initialize trajectory optimizer */
     eva_tracker::Optimizer optimizer(
-        nh.param("ki", 4),
-        nh.param("lbfgs/max_iter", 100),
+        nh.param("k", 4), 
         &minco, &bezier, &robot, &fov, bezier.time,
-        nh.param("lbfgs/delta", 1e-5),
-        nh.param("lbfgs/min_step", 1e-32),
-        nh.param("lbfgs/memory_size", 0x100),
         nh.param("tracker/max_vel_xy", 1.5),
         nh.param("tracker/max_vel_z", 0.1),
         nh.param("tracker/max_vel_yaw", 1.),
@@ -96,10 +92,19 @@ int main(int argc, char* argv[])
         nh.param("tracker/max_acc_yaw", 1.5),
         nh.param("lambda_p", 1.),
         nh.param("lambda_o", 1.),
-        nh.param("lambda_d", 1.),
+        nh.param("lambda_v", 1.),
         nh.param("lambda_a", 1.),
         nh.param("gamma", 1.),
-        nh.param("lbfgs/weight", 1.)
+        nh.param("lambda_e", 1.),
+        nh.param("lbfgs/epsilon", 0.),
+        nh.param("lbfgs/delta", 1e-5),
+        nh.param("lbfgs/eps", 1e-6),
+        nh.param("lbfgs/armijo", 1e-4),
+        nh.param("lbfgs/wolfe", 0.9),
+        nh.param("lbfgs/max_step", 1e20),
+        nh.param("lbfgs/mem_size", 64),
+        nh.param("lbfgs/past", 3),
+        nh.param("lbfgs/max_iters", 64)
     );
 
     /* Point cloud */

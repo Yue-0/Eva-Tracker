@@ -31,7 +31,7 @@
     <arg name="gamma" default="100000" />
     <arg name="lambda/p" default="1e5" />
     <arg name="lambda/o" default="1e0" />
-    <arg name="lambda/d" default="1e4" />
+    <arg name="lambda/v" default="1e4" />
     <arg name="lambda/a" default="1e4" />
     <arg name="delta_theta" default="1.0" />
 
@@ -62,7 +62,7 @@
         <param name="gamma" value="$(arg gamma)" type="double" />
         <param name="lambda_p" value="$(arg lambda/p)" type="double" />
         <param name="lambda_o" value="$(arg lambda/o)" type="double" />
-        <param name="lambda_d" value="$(arg lambda/d)" type="double" />
+        <param name="lambda_v" value="$(arg lambda/v)" type="double" />
         <param name="lambda_a" value="$(arg lambda/a)" type="double" />
         <param name="delta_theta" value="$(arg delta_theta)" type="double" />
 

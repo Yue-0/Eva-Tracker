@@ -95,7 +95,6 @@
     </include>
 
     <!-- Controller -->
-    <!-- <include file="$(find l_ctrl)/launch/run_ctrl.launch" /> -->
     <node name="remote_control" pkg="tracker" type="control.py" />
 
     <!-- Robot model -->
