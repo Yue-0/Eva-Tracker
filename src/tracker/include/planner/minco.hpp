@@ -109,11 +109,11 @@ namespace eva_tracker
             ~Minco() {if(a != nullptr) delete[] a;}
         
             /* Initialize Minco */
-            void initialize(int num, Eigen::Matrix<double, dim, -1>* boundary)
+            void initialize(int num, const Eigen::Matrix<double, dim, -1>* bd)
             {
                 n = num;
-                head = *boundary;
-                tail = *(boundary + 1);
+                head = *bd;
+                tail = *(bd + 1);
 
                 /* Initialize boundary system */
                 b.resize(2 * n * s, dim);
@@ -207,7 +207,7 @@ namespace eva_tracker
             }
             
             /* Set the endpoint */
-            void set(Eigen::Matrix<double, dim, 1>& endpoint) 
+            void set(const Eigen::Matrix<double, dim, 1>& endpoint) 
             {
                 tail.col(0) = endpoint;
             }

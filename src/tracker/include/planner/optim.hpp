@@ -53,7 +53,6 @@ namespace eva_tracker
                        pcl::PointCloud<pcl::PointXYZ>* world);
 
         private:
-            double lbfgs(Eigen::VectorXd& x);
             void forward(Eigen::VectorXd& data,
                          const Eigen::VectorXd& vector,
                          const Eigen::Matrix4Xd& matrix);
