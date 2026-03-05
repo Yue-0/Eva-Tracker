@@ -1,12 +1,12 @@
 # Eva-Tracker
 
-__Eva-Tracker__ is an ESDF-update-free, Visibility-Aware trajectory planning framework for aerial tracking. It enables trajectory optimization without updating the environmental ESDF or generating safe flight corridors.
+__Eva-Tracker__ is an ESDF-update-free, Visibility-Aware trajectory planning framework for aerial tracking, which employs a fast __candidate-correction__ approach to generate initial paths, and employs a novel __FoV-ESDF__ for visibility-aware trajectory optimization. For detailed technical information, please refer to our paper:
 
-## Paper
+[__Eva-Tracker: ESDF-update-free, Visibility-aware Planning with Target Reacquisition for Robust Aerial Tracking__](https://arxiv.org/abs/2602.12549) __(ICRA 2026)__.
 
-[__Eva-Tracker: ESDF-update-free, Visibility-aware Planning with Target Reacquisition for Robust Aerial Tracking__](https://arxiv.org/abs/2602.12549). Accepted by __ICRA 2026__.
+Authors: [Yue Lin](https://github.com/Yue-0), Yang Liu, Dong Wang, Huchuan Lu.
 
-Author: [Yue Lin](https://github.com/Yue-0), Yang Liu, Dong Wang, Huchuan Lu.
+<img src="img/simulation1.gif" alt="simulation1" style="max-width: 100%" /> <img src="img/simulation2.gif" alt="simulation2" style="max-width: 100%" /> <img src="img/simulation3.gif" alt="simulation3" style="max-width: 100%" />
 
 ## Quick Start
 
@@ -48,7 +48,7 @@ You can use `2D Nav Goal` to control the target movement, or use `Publish Point`
 
 Our drone platform is shown in the figure, equipped with a Livox Mid-360 LiDAR and an Intel RealSense depth camera. The computing platform is Jetson Orin NX.
 
-![Our Drone Platform](uav.png)
+![Our Drone Platform](img/uav.png)
 
 For the first run, make sure your device supports `TensorRT` and then export the object detection model, which would take a while:
 
@@ -79,11 +79,3 @@ roslaunch tracker realworld.launch
 ```
 
 If you turn the 8th channel of the remote controller from down to the middle, the drone will automatically take off to a height of 1.2m. If you turn it from the middle to up, the drone will automatically follow the target. Conversely, if you turn it from up to the middle, the drone will automatically hover. If you turn it down, the drone will automatically land.
-
-## Acknowledgements
-
-We use the pre-trained model of [YOLOv11](https://github.com/ultralytics/ultralytics)-Pose for human keypoint detection.
-
-We use [LBFGS-Lite](https://github.com/ZJU-FAST-Lab/LBFGS-Lite) to solve numerical optimization problems.
-
-Our real-world drone is provided by __Differential Robotics__.
