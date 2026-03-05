@@ -6,7 +6,19 @@ __Eva-Tracker__ is an ESDF-update-free, Visibility-Aware trajectory planning fra
 
 Authors: [Yue Lin](https://github.com/Yue-0), Yang Liu, Dong Wang, Huchuan Lu.
 
-<img src="img/simulation1.gif" alt="simulation1" style="max-width: 100%" /> <img src="img/simulation2.gif" alt="simulation2" style="max-width: 100%" /> <img src="img/simulation3.gif" alt="simulation3" style="max-width: 100%" />
+<table>
+    <tr>
+        <td style="text-align: center;">
+            <img src="img/simulation1.gif" alt="simulation1" style="max-width: 100%" />
+        </td>
+        <td style="text-align: center;">
+            <img src="img/simulation2.gif" alt="simulation2" style="max-width: 100%" />
+        </td>
+        <td style="text-align: center;">
+            <img src="img/simulation3.gif" alt="simulation3" style="max-width: 100%" />
+        </td>
+    </tr>
+</table>
 
 ## Quick Start
 
